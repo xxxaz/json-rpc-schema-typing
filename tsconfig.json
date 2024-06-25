@@ -1,0 +1,18 @@
+{
+    "compilerOptions": {
+        "target": "ESNext",
+        "types": ["node"],
+        "declaration": false,
+        "sourceMap": true,
+        "strict": true,
+        "alwaysStrict": true,
+        "downlevelIteration": true,
+        "module": "NodeNext",
+        "esModuleInterop": true,
+        "incremental": true,
+        "rootDir": "./src"
+    },
+    "include": [
+        "./src/**/*.ts"
+    ]
+}

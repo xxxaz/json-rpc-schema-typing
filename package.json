@@ -1,0 +1,64 @@
+{
+    "name": "@xxxaz/json-rpc-schema-typing",
+    "version": "1.0.0",
+    "description": "",
+    "author": "xxx Inc.",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/xxxaz/json-rpc-schema-typing.git"
+    },
+    "homepage": "https://github.com/xxxaz/json-rpc-schema-typing#readme",
+    "bugs": {
+        "url": "https://github.com/xxxaz/json-rpc-schema-typing/issues"
+    },
+    "engines": {
+        "node": ">=18"
+    },
+    "type": "module",
+    "types": "./types/index.d.js",
+    "main": "./cjs/index.js",
+    "module": "./esm/index.js",
+    "exports": {
+        ".": {
+            "types": "./types/index.d.ts",
+            "require": "./cjs/index.js",
+            "import": "./esm/index.js",
+            "default": "./esm/index.js"
+        },
+        "./*": {
+            "types": "./types/*.d.ts",
+            "require": "./cjs/*.js",
+            "import": "./esm/*.js",
+            "default": "./esm/*.js"
+        }
+    },
+    "files": [
+        "types",
+        "cjs",
+        "esm"
+    ],
+    "sideEffects": false,
+    "scripts": {
+        "clean": "rm -rf ./*.tsbuildinfo ./*.tgz ./types ./esm ./cjs",
+        "transpile": "tsc -b tsconfig-types.json tsconfig-esm.json tsconfig-cjs.json",
+        "post-build": "node --no-warnings=ExperimentalWarning --loader=ts-node/esm ./post-build",
+        "build": "npm run clean && npm run transpile && npm run post-build",
+        "prepublish": "npm run build",
+        "test": "jest"
+    },
+    "dependencies": {
+        "@types/json-schema": "^7.0.15",
+        "@xxxaz/stream-api-json": "^1.0.1",
+        "json-schema": "^0.4.0",
+        "json-schema-to-ts": "^3.1.0",
+        "yaml": "^2.4.5"
+    },
+    "devDependencies": {
+        "@types/jest": "^29.5.12",
+        "jest": "^29.7.0",
+        "ts-jest": "^29.1.5",
+        "ts-node": "^10.9.2",
+        "typescript": "^5.5.2"
+    }
+}
