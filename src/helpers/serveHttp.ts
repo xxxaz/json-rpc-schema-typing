@@ -4,20 +4,13 @@ import { JsonRpcServer } from '../JsonRpcServer.js';
 import { JsonRpcRequest } from '../types.js';
 import { InternalError, JsonRpcException } from '../JsonRpcException.js';
 
-
-export type HttpContext = {
-    request: IncomingMessage;
-    response: ServerResponse;
-};
-
 async function * extract(iterable: ParsingJsonArray<JsonRpcRequest[]>) {
     for await (const req of iterable) {
         yield await req.all();
     }
 }
 
-export async function serveHttp<Ctx = HttpContext>(server: JsonRpcServer<Ctx>, request: IncomingMessage, response: ServerResponse, context?: Ctx): Promise<void> {
-    context ??= { request, response } as Ctx;
+export async function serveHttp<Ctx>(server: JsonRpcServer<Ctx>, context: Ctx, request: IncomingMessage, response: ServerResponse): Promise<void> {
     try {
         const root = await JsonStreamingParser
             .readFrom(request)

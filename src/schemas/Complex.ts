@@ -7,6 +7,12 @@ export function $Enum<T extends (null|boolean|number|string)[]>(...elements: T) 
     } as const;
 }
 
+export function $EnumKeys<T extends object>(obj: T) {
+    return {
+        enum: Object.keys(obj) as [(keyof T)]
+    } as const;
+}
+
 export function $Expand<Src extends JSONSchema, Ex extends Partial<JSONSchema>>(source: Src, expand: Ex) {
     return {
         ...source,
