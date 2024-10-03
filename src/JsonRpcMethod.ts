@@ -1,7 +1,17 @@
-import { validate, type ValidationError } from 'json-schema';
+import { Ajv } from 'ajv';
 import { type FromSchema } from 'json-schema-to-ts';
 import { type JSONSchema } from "./types.js";
 import { InvalidParams, InvalidReturn } from './JsonRpcException.js';
+
+function validate(data: unknown, schema: JSONSchema) {
+    const ajv = new Ajv();
+    const validate = ajv.compile(schema);
+    const valid = validate(data);
+    return {
+        valid,
+        errors: validate.errors ?? []
+    };
+}
 
 export interface JsonRpcMethodSchema<PrmSch extends readonly JSONSchema[], RtnSch extends JSONSchema|undefined> {
     readonly $params: PrmSch;
@@ -45,7 +55,7 @@ export class JsonRpcMethodDefinition<Context, PrmSch extends readonly JSONSchema
     validateParams(params: unknown[]): params is Params<PrmSch> {
         const errors = this.$params
             .map((schema, index) => validate(params[index] as any, schema))
-            .map(({ errors }, argument) => errors.map(({ property, message }) => ({ argument, property, message })))
+            .map(({ errors }, argument) => errors.map(({ propertyName, message }) => ({ argument, property: propertyName ?? '', message: message ?? '' })))
             .flat();
         if(errors.length > 0) {
             const message = errors.map(({ argument, property, message }) => `args[${argument}].${property}: ${message}`).join('\n');
@@ -56,7 +66,7 @@ export class JsonRpcMethodDefinition<Context, PrmSch extends readonly JSONSchema
 
     validateReturn(result: unknown): result is Return<RtnSch> {
         if(!this.$return) return result === undefined;
-        const errors = validate(result as any, this.$return).errors.map(({ property, message }) => ({ property, message }));
+        const errors = validate(result as any, this.$return).errors.map(({ propertyName, message }) => ({ property: propertyName ?? '', message: message ?? '' }));
         if (errors.length > 0) {
             const message = errors.map(({ property, message }) => `return.${property}: ${message}`).join('\n');
             throw new InvalidReturn(message, errors);

@@ -1,6 +1,6 @@
 import { LazyResolvers } from "@xxxaz/stream-api-json/utility";
 import { JsonRpcException, MethodNotFound, InternalError, InvalidRequest } from "./JsonRpcException.js";
-import { type JsonRpcMethodDefinition } from "./JsonRpcMethod.js";
+import { JsonRpcMethodDefinition } from "./JsonRpcMethod.js";
 import { type JsonRpcRouter } from "./JsonRpcRouter.js";
 import { type JsonRpcRequest, type JsonRpcResponse } from "./types.js";
 
@@ -16,7 +16,7 @@ export class JsonRpcServer<Context> {
 
     private pickMethodDefine(methodPath: string): JsonRpcMethodDefinition<Context, any, any> {
         const picked = methodPath.split('.').reduce((route: any, path)=> route?.[path], this.router);
-        if (picked?.$schema && picked.method instanceof Function) {
+        if (picked?.[JsonRpcMethodDefinition.method] instanceof Function) {
             return picked;
         }
         throw new MethodNotFound(`method ${methodPath} is not Found.`);
