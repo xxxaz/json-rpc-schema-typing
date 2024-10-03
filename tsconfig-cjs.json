@@ -2,6 +2,11 @@
     "extends": "./tsconfig.json",
     "compilerOptions": {
         "module": "CommonJS",
-        "outDir": "./cjs"
+        "outDir": "./cjs",
+        "paths": {
+            "@xxxaz/stream-api-json/utility": [
+                "./node_modules/@xxxaz/stream-api-json/types/utility.d.ts"
+            ]
+        }
     }
 }
