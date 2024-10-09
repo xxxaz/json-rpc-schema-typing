@@ -1,5 +1,5 @@
 import { lstatSync, readdirSync } from 'fs';
-import { JsonRpcRouter } from '../JsonRpcRouter.js';
+import { JsonRpcAsyncRouter } from '../JsonRpcRouter.js';
 import { JsonRpcMethodDefinition } from '../JsonRpcMethod.js';
 
 type Stat = {
@@ -8,25 +8,37 @@ type Stat = {
     directory: boolean;
 };
 
-export async function dynamicRouting<Ctx = any> (rootPath: string, enumerator: (path: string) => AsyncIterable<Stat>) : Promise<JsonRpcRouter<Ctx>> {
-    const router = {} as  { [name: string]: JsonRpcRouter<Ctx>|JsonRpcMethodDefinition<Ctx, any, any> };
+type MethodDef<Context> = JsonRpcMethodDefinition<Context, any, any>;
+type AsyncRouter<Context> = {
+    [path: string]: Promise<AsyncRouter<Context>|MethodDef<Context>|undefined>;
+};
+
+export async function dynamicRouting<Ctx = any> (rootPath: string, enumerator: (path: string) => AsyncIterable<Stat>) : Promise<JsonRpcAsyncRouter<Ctx>> {
+    const router = {} as  AsyncRouter<Ctx>;
     for await (const { name, path, directory } of enumerator(rootPath)) {
         if(directory) {
-            const subRouter = await dynamicRouting<Ctx>(path, enumerator);
-            if (Object.keys(subRouter).length > 0) {
-                router[name] = subRouter;
-            }
+            router[name] = dynamicRouting<Ctx>(path, enumerator) as Promise<AsyncRouter<Ctx>>;
             continue;
         }
-        try {
-            const module = await import(path);
-            if(module.default instanceof JsonRpcMethodDefinition) {
-                const methodName = name.replace(/\.[jt]s$/, '');
-                router[methodName] = module.default;
-            }
-        } catch (e) {}
+        if (name.match(/\.[jt]s$/)) {
+            const methodName = name.replace(/\.[jt]s$/, '');
+            router[methodName] = importMethod<Ctx>(path);
+            continue;
+        }
     }
     return router;
+}
+
+async function importMethod<Context>(path: string): Promise<MethodDef<Context>|undefined> {
+    try {
+        const module = await import(path);
+        if(module.default instanceof JsonRpcMethodDefinition) {
+            return module.default;
+        }
+    } catch(e) {
+        console.error(`Invalid routing: ${path}`, e);
+    }
+    return undefined;
 }
 
 export function fileSystemRouting<Ctx = any> (rootPath: string) {

@@ -3,8 +3,14 @@ import { JsonRpcMethodDefinition, JsonRpcMethodSchema, Params, Return } from "./
 type AsyncFunction<P, R> = (...params: Params<P>) => Promise<Return<R>>;
 type NoticeFunction<Prm> = (...params: Params<Prm>) => void;
 
-export type JsonRpcRouter<Context = {}> = {
-    readonly [path: string]: JsonRpcRouter<Context>|JsonRpcMethodDefinition<Context, any, any>;
+export type JsonRpcRouter<Context = {}> = JsonRpcSyncRouter<Context>|JsonRpcAsyncRouter<Context>;
+
+export type JsonRpcSyncRouter<Context> = {
+    readonly [path: string]: JsonRpcSyncRouter<Context>|JsonRpcMethodDefinition<Context, any, any>;
+};
+
+export type JsonRpcAsyncRouter<Context> = {
+    readonly [path: string]: Promise<JsonRpcRouter<Context>|JsonRpcMethodDefinition<Context, any, any>|undefined>;
 };
 
 export type JsonRpcSchemaFrom<Router extends JsonRpcRouter> = {

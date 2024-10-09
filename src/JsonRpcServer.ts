@@ -4,6 +4,8 @@ import { JsonRpcMethodDefinition } from "./JsonRpcMethod.js";
 import { type JsonRpcRouter } from "./JsonRpcRouter.js";
 import { type JsonRpcRequest, type JsonRpcResponse } from "./types.js";
 
+type MethodDef<Context> = JsonRpcMethodDefinition<Context, any, any>;
+
 export class JsonRpcServer<Context> {
     constructor(readonly router: JsonRpcRouter<Context>) {
     }
@@ -14,8 +16,12 @@ export class JsonRpcServer<Context> {
         if(!method) throw new InvalidRequest('method is required.');
     }
 
-    private pickMethodDefine(methodPath: string): JsonRpcMethodDefinition<Context, any, any> {
-        const picked = methodPath.split('.').reduce((route: any, path)=> route?.[path], this.router);
+    private async pickMethodDefine(methodPath: string): Promise<MethodDef<Context>> {
+        let route: JsonRpcRouter<Context>|MethodDef<Context>|undefined = this.router;
+        for (const path of methodPath.split('.')) {
+            route = await (route as JsonRpcRouter<Context>)?.[path];
+        }
+        const picked = route as MethodDef<Context>|undefined;
         if (picked?.[JsonRpcMethodDefinition.method] instanceof Function) {
             return picked;
         }
@@ -27,7 +33,7 @@ export class JsonRpcServer<Context> {
             this.validateRequest(request);
             const { method, params } = request;
 
-            const picked = this.pickMethodDefine(method);
+            const picked = await this.pickMethodDefine(method);
             picked.validateParams(params);
             const result = await picked.apply(ctx, params);
             try {
