@@ -1,7 +1,7 @@
 import { Ajv } from 'ajv';
 import { type FromSchema } from 'json-schema-to-ts';
 import { type JSONSchema } from "./types.js";
-import { InvalidParams, InvalidReturn } from './JsonRpcException.js';
+import { InvalidContext, InvalidParams, InvalidReturn } from './JsonRpcException.js';
 
 function validate(data: unknown, schema: JSONSchema) {
     const ajv = new Ajv();
@@ -34,6 +34,8 @@ export type Return<Schema>
 export type JsonRpcMethod<Context, PrmSch extends readonly JSONSchema[], RtnSch extends JSONSchema|undefined>
     = (this: Context, ...params: Params<PrmSch>) => Promise<Return<RtnSch>>|Return<RtnSch>;
 
+type ContextClass<Ctx> = { new(...args: any[]): Ctx };
+type Context<Cls, FB> = Cls extends ContextClass<infer Ctx> ? Ctx : FB;
 
 const methodKey = Symbol('JsonRpcMethodDefinition.method');
 export class JsonRpcMethodDefinition<Context, PrmSch extends readonly JSONSchema[], RtnSch extends JSONSchema|undefined> implements JsonRpcMethodSchema<PrmSch, RtnSch> {
@@ -43,12 +45,17 @@ export class JsonRpcMethodDefinition<Context, PrmSch extends readonly JSONSchema
     constructor(
         method: JsonRpcMethod<Context, PrmSch, RtnSch>,
         readonly $params: PrmSch,
-        readonly $return: RtnSch
+        readonly $return: RtnSch,
+        readonly $contextClass?: ContextClass<Context>,
     ) {
         this[methodKey] = method;
     }
 
     apply(ctx: Context, params: Params<PrmSch>) {
+        if(this.$contextClass && !(ctx instanceof this.$contextClass)) {
+            const passedCtxType = (ctx as any)?.constructor?.name ?? typeof ctx;
+            throw new InvalidContext(`Invalid context: expected ${this.$contextClass.name} but got ${passedCtxType}`);
+        }
         return this[methodKey].apply(ctx, params);
     }
 
@@ -74,35 +81,31 @@ export class JsonRpcMethodDefinition<Context, PrmSch extends readonly JSONSchema
         return true;
     }
 
-    static define<Context = {}>(method: JsonRpcMethod<Context, [], undefined>) {
-        return new this<Context, [], undefined>(method, [], undefined);
+    static get builder(){
+        return new DefinitionBuilder(undefined, [], undefined);
     }
-    
-    static paramsSchema<Prm extends readonly JSONSchema[]>(...params: Prm) {
-        return new DefinitionBuilder(params, undefined);
-    }
-
-    static returnSchema<Rtn extends JSONSchema|undefined>(rtn?: Rtn) {
-        return new DefinitionBuilder([] as const, rtn);
-    }
-
 }
 
-class DefinitionBuilder<PrmSch extends readonly JSONSchema[], RtnSch extends JSONSchema|undefined> implements JsonRpcMethodSchema<PrmSch, RtnSch> {
+class DefinitionBuilder<CtxCls extends ContextClass<any>|undefined, PrmSch extends readonly JSONSchema[], RtnSch extends JSONSchema|undefined> implements JsonRpcMethodSchema<PrmSch, RtnSch> {
     constructor(
+        readonly $contextClass: CtxCls,
         readonly $params: PrmSch,
-        readonly $return: RtnSch
+        readonly $return: RtnSch,
     ) {}
 
-    define<Context = {}>(method: JsonRpcMethod<Context, PrmSch, RtnSch>) {
-        return new JsonRpcMethodDefinition<Context, PrmSch, RtnSch>(method, this.$params, this.$return);
+    define<Ctx = {}>(method: JsonRpcMethod<Context<CtxCls, Ctx>, PrmSch, RtnSch>) {
+        return new JsonRpcMethodDefinition<Context<CtxCls, Ctx>, PrmSch, RtnSch>(method, this.$params, this.$return, this.$contextClass);
+    }
+
+    contextClass<CtxCls extends ContextClass<any>>(contextClass: CtxCls) {
+        return new DefinitionBuilder(contextClass, this.$params, this.$return);
     }
 
     paramsSchema<NewPrm extends readonly JSONSchema[]>(...params: NewPrm) {
-        return new DefinitionBuilder(params, this.$return);
+        return new DefinitionBuilder(this.$contextClass, params, this.$return);
     }
     
     returnSchema<NewRtn extends JSONSchema|undefined>(rtn: NewRtn) {
-        return new DefinitionBuilder(this.$params, rtn);
+        return new DefinitionBuilder(this.$contextClass, this.$params, rtn);
     }
 }

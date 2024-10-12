@@ -80,10 +80,13 @@ export class InternalError extends JsonRpcException {
     static readonly defaultMessage = 'Internal JSON-RPC error.';
 }
 
+export class InvalidContext extends InternalError {
+}
+
 export class InvalidReturn extends InternalError {
 }
 
-defineExceptions({ ParseError, InvalidRequest, MethodNotFound, InvalidParams, InvalidReturn, InternalError });
+defineExceptions({ ParseError, InvalidRequest, MethodNotFound, InvalidParams, InvalidContext, InvalidReturn, InternalError });
 
 /**
  * 
