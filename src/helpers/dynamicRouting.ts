@@ -12,21 +12,28 @@ type MethodDef<Context> = JsonRpcMethodDefinition<Context, any, any>;
 type AsyncRouter<Context> = {
     [path: string]: Promise<AsyncRouter<Context>|MethodDef<Context>|undefined>;
 };
+type RoutingLoader<Context> = {
+    [path: string]: () => Promise<AsyncRouter<Context>|MethodDef<Context>|undefined>;
+};
 
 export async function dynamicRouting<Ctx = any> (rootPath: string, enumerator: (path: string) => AsyncIterable<Stat>) : Promise<JsonRpcAsyncRouter<Ctx>> {
-    const router = {} as  AsyncRouter<Ctx>;
+    const loader = {} as RoutingLoader<Ctx>;
     for await (const { name, path, directory } of enumerator(rootPath)) {
         if(directory) {
-            router[name] = dynamicRouting<Ctx>(path, enumerator) as Promise<AsyncRouter<Ctx>>;
+            loader[name] = () => dynamicRouting<Ctx>(path, enumerator) as Promise<AsyncRouter<Ctx>>;
             continue;
         }
         if (name.match(/\.[jt]s$/)) {
             const methodName = name.replace(/\.[jt]s$/, '');
-            router[methodName] = importMethod<Ctx>(path);
+            loader[methodName] = () => importMethod<Ctx>(path);
             continue;
         }
     }
-    return router;
+
+    const cache = {} as AsyncRouter<Ctx>;
+    return new Proxy(cache, {
+        get: (target, prop: string) => cache[prop] ??= loader[prop]?.()
+    });
 }
 
 async function importMethod<Context>(path: string): Promise<MethodDef<Context>|undefined> {
@@ -35,6 +42,7 @@ async function importMethod<Context>(path: string): Promise<MethodDef<Context>|u
         if(module.default instanceof JsonRpcMethodDefinition) {
             return module.default;
         }
+        console.info(`Ignoring routing without default export as JsonRpcMethodDefinition: ${path}`);
     } catch(e) {
         console.error(`Invalid routing: ${path}`, e);
     }
