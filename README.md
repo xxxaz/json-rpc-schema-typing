@@ -1,6 +1,6 @@
 # json-rpc-schema-typing
 
 ### TODO
-- Client
+- JWT対応
 - ドキュメント生成
 - npm CommonJSパッケージの整理

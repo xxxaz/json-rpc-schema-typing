@@ -5,3 +5,5 @@ coverage
 /esm
 /cjs
 /types
+
+/demo/schema.ts

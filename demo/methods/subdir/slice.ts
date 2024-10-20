@@ -1,7 +1,7 @@
 import { $Or, $String, JsonRpcMethodDefinition } from '../../../src/index.js';
 import { $Array, $Integer } from '../../../src/index.js';
 
-export default JsonRpcMethodDefinition
+export default JsonRpcMethodDefinition.builder
     .paramsSchema(
         $Or($Array($String), $String),
         $Integer,

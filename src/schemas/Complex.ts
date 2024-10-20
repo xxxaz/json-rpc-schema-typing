@@ -1,5 +1,5 @@
+import { Primitive } from "@xxxaz/stream-api-json";
 import { JSONSchema } from "../types.js";
-import { $Boolean, $Null, $Number, $String } from "./Primitive.js";
 
 export function $Enum<T extends (null|boolean|number|string)[]>(...elements: T) {
     return {
@@ -12,6 +12,12 @@ export function $EnumKeys<T extends object>(obj: T) {
         enum: Object.keys(obj) as [(keyof T)]
     } as const;
 }
+
+export function $EnumValues<T extends { [key: string]: Primitive }>(obj: T) {
+    return {
+        enum: Object.values(obj) as [T[keyof T]],
+    } as const;
+};
 
 export function $Expand<Src extends JSONSchema, Ex extends Partial<JSONSchema>>(source: Src, expand: Ex) {
     return {

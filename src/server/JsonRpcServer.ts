@@ -1,8 +1,9 @@
 import { LazyResolvers } from "@xxxaz/stream-api-json/utility";
-import { JsonRpcException, MethodNotFound, InternalError, InvalidRequest } from "./JsonRpcException.js";
-import { JsonRpcMethodDefinition } from "./JsonRpcMethod.js";
-import { type JsonRpcRouter } from "./JsonRpcRouter.js";
-import { type JsonRpcRequest, type JsonRpcResponse } from "./types.js";
+import { JsonRpcException, MethodNotFound, InternalError, InvalidRequest } from "../JsonRpcException.js";
+import { JsonRpcMethodDefinition } from "../JsonRpcMethod.js";
+import { type JsonRpcRouter } from "../router/JsonRpcRouter.js";
+import { type JsonRpcRequest, type JsonRpcResponse } from "../types.js";
+import { JsonRpcValidator } from "../JsonRpcValidator.js";
 
 type MethodDef<Context> = JsonRpcMethodDefinition<Context, any, any>;
 
@@ -17,11 +18,7 @@ export class JsonRpcServer<Context> {
     }
 
     private async pickMethodDefine(methodPath: string): Promise<MethodDef<Context>> {
-        let route: JsonRpcRouter<Context>|MethodDef<Context>|undefined = this.router;
-        for (const path of methodPath.split('.')) {
-            route = await (route as JsonRpcRouter<Context>)?.[path];
-        }
-        const picked = route as MethodDef<Context>|undefined;
+        const picked = await this.router.resolve(methodPath) as MethodDef<Context>|null;
         if (picked?.[JsonRpcMethodDefinition.method] instanceof Function) {
             return picked;
         }
@@ -34,10 +31,12 @@ export class JsonRpcServer<Context> {
             const { method, params } = request;
 
             const picked = await this.pickMethodDefine(method);
-            picked.validateParams(params);
+            const validator = new JsonRpcValidator(picked);
+
+            validator.validateParams(params);
             const result = await picked.apply(ctx, params);
             try {
-                picked.validateReturn(result);
+                validator.validateReturn(result);
             } catch (e) {
                 console.warn(`Invalid Result: ${method}`, e);
             }

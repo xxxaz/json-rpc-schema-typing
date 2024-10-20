@@ -1,6 +1,6 @@
 {
     "name": "@xxxaz/json-rpc-schema-typing",
-    "version": "0.8.9",
+    "version": "0.9.0",
     "description": "",
     "author": "xxx Inc.",
     "license": "MIT",
@@ -45,7 +45,8 @@
         "post-build": "node --no-warnings=ExperimentalWarning --loader=ts-node/esm ./post-build.js",
         "build": "npm run clean && npm run transpile && npm run post-build",
         "prepublish": "npm run build",
-        "demo": "node --no-warnings=ExperimentalWarning --loader=ts-node/esm ./demo/demo.js",
+        "demo:server": "node --no-warnings=ExperimentalWarning --loader=ts-node/esm ./demo/server.js",
+        "demo:client": "node --no-warnings=ExperimentalWarning --loader=ts-node/esm ./demo/client.js",
         "test": "jest"
     },
     "dependencies": {

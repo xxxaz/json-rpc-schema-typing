@@ -1,5 +1,5 @@
 import { type JsonSerializable } from "@xxxaz/stream-api-json";
-import { JsonRpcError } from "./types.js";
+import { JsonRpcError, JsonRpcResponse } from "./types.js";
 
 type JsonRpcExceptionClass = {
     readonly defaultMessage?: string;
@@ -16,12 +16,13 @@ function defineExceptions(classes: { [name: string]: JsonRpcExceptionClass }) {
 }
 
 export abstract class JsonRpcException extends Error {
-    static deserialize({ code, message, data }: JsonRpcError): JsonRpcException|null {
+    static deserialize(error: JsonRpcError): JsonRpcException {
+        const { code, message, data } = error;
         for(const cls of defined.keys()) {
             if(cls.code !== code) continue;
             return new cls(message, data);
         }
-        return null;
+        return new ResponseUncaughtError(error);
     }
 
     constructor(message?: string, data?: JsonSerializable) {
@@ -103,5 +104,22 @@ export abstract class ServerError extends JsonRpcException {
             }
         });
         defineExceptions(classes);
+    }
+}
+
+export class ResponseUncaughtError extends JsonRpcException {
+    constructor(readonly error: JsonRpcError) {
+        super(error.message ?? 'Uncaught Error', error.data);
+    }
+}
+
+export class ClientUncaughtError extends JsonRpcException {
+    constructor(message: string, data?: JsonSerializable) {
+        super(message, data);
+    }
+}
+export class ClientHttpError extends JsonRpcException {
+    constructor(message: string, data?: JsonSerializable) {
+        super(message, data);
     }
 }

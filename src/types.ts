@@ -1,7 +1,7 @@
 import { type JSONSchema as ToTsSchema } from 'json-schema-to-ts';
 import { type JsonSerializable } from "@xxxaz/stream-api-json";
 
-export type JSONSchema = ToTsSchema & object;
+export type JSONSchema = ToTsSchema & object & { optional?: boolean };
 
 export type JsonRpcRequest = {
     jsonrpc: '2.0';

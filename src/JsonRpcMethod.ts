@@ -1,26 +1,19 @@
-import { Ajv } from 'ajv';
 import { type FromSchema } from 'json-schema-to-ts';
 import { type JSONSchema } from "./types.js";
-import { InvalidContext, InvalidParams, InvalidReturn } from './JsonRpcException.js';
-
-function validate(data: unknown, schema: JSONSchema) {
-    const ajv = new Ajv();
-    const validate = ajv.compile(schema);
-    const valid = validate(data);
-    return {
-        valid,
-        errors: validate.errors ?? []
-    };
-}
+import { InvalidContext } from './JsonRpcException.js';
 
 export interface JsonRpcMethodSchema<PrmSch extends readonly JSONSchema[], RtnSch extends JSONSchema|undefined> {
     readonly $params: PrmSch;
-    readonly $return: RtnSch;
+    readonly $return?: RtnSch;
 }
 
 export type Params<Schema>
     = Schema extends readonly [ JSONSchema, ...infer Rmn ]
-        ? [ FromSchema<Schema[0]>, ...Params<Rmn> ]
+        ? (
+            Schema[0] extends { optional: true }
+                ? [ p?: FromSchema<Schema[0]>, ...Params<Rmn> ]
+                : [ FromSchema<Schema[0]>, ...Params<Rmn> ]
+        )
     : Schema extends readonly []
         ? []
     : never;
@@ -57,28 +50,6 @@ export class JsonRpcMethodDefinition<Context, PrmSch extends readonly JSONSchema
             throw new InvalidContext(`Invalid context: expected ${this.$contextClass.name} but got ${passedCtxType}`);
         }
         return this[methodKey].apply(ctx, params);
-    }
-
-    validateParams(params: unknown[]): params is Params<PrmSch> {
-        const errors = this.$params
-            .map((schema, index) => validate(params[index] as any, schema))
-            .map(({ errors }, argument) => errors.map(({ propertyName, message }) => ({ argument, property: propertyName ?? '', message: message ?? '' })))
-            .flat();
-        if(errors.length > 0) {
-            const message = errors.map(({ argument, property, message }) => `args[${argument}].${property}: ${message}`).join('\n');
-            throw new InvalidParams(message, errors);
-        }
-        return true;
-    }
-
-    validateReturn(result: unknown): result is Return<RtnSch> {
-        if(!this.$return) return result === undefined;
-        const errors = validate(result as any, this.$return).errors.map(({ propertyName, message }) => ({ property: propertyName ?? '', message: message ?? '' }));
-        if (errors.length > 0) {
-            const message = errors.map(({ property, message }) => `return.${property}: ${message}`).join('\n');
-            throw new InvalidReturn(message, errors);
-        }
-        return true;
     }
 
     static get builder(){
