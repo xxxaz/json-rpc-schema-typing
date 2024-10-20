@@ -1,2 +1,3 @@
+import { type JsonRpcSchema } from "./router/JsonRpcRouter.js";
 
-export class JsonRpcClient {}
+export class JsonRpcClient<S extends JsonRpcSchema> {}

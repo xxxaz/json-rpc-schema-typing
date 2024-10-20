@@ -20,7 +20,11 @@ export interface JsonRpcMethodSchema<PrmSch extends readonly JSONSchema[], RtnSc
 
 export type Params<Schema>
     = Schema extends readonly [ JSONSchema, ...infer Rmn ]
-        ? [ FromSchema<Schema[0]>, ...Params<Rmn> ]
+        ? (
+            Schema[0] extends { optional: true }
+                ? [ p?: FromSchema<Schema[0]>, ...Params<Rmn> ]
+                : [ FromSchema<Schema[0]>, ...Params<Rmn> ]
+        )
     : Schema extends readonly []
         ? []
     : never;

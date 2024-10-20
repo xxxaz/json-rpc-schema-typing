@@ -1,8 +1,9 @@
 import { LazyResolvers } from "@xxxaz/stream-api-json/utility";
 import { JsonRpcException, MethodNotFound, InternalError, InvalidRequest } from "./JsonRpcException.js";
 import { JsonRpcMethodDefinition } from "./JsonRpcMethod.js";
-import { type JsonRpcRouter } from "./JsonRpcRouter.js";
+import { JsonRpcSchema, type JsonRpcRouter } from "./router/JsonRpcRouter.js";
 import { type JsonRpcRequest, type JsonRpcResponse } from "./types.js";
+import { hashObject } from "./helpers/hashObject.js";
 
 type MethodDef<Context> = JsonRpcMethodDefinition<Context, any, any>;
 
@@ -17,11 +18,7 @@ export class JsonRpcServer<Context> {
     }
 
     private async pickMethodDefine(methodPath: string): Promise<MethodDef<Context>> {
-        let route: JsonRpcRouter<Context>|MethodDef<Context>|undefined = this.router;
-        for (const path of methodPath.split('.')) {
-            route = await (route as JsonRpcRouter<Context>)?.[path];
-        }
-        const picked = route as MethodDef<Context>|undefined;
+        const picked = await this.router.resolve(methodPath) as MethodDef<Context>|null;
         if (picked?.[JsonRpcMethodDefinition.method] instanceof Function) {
             return picked;
         }
@@ -94,5 +91,24 @@ export class JsonRpcServer<Context> {
             delete promises[response.id!];
         }
     };
+
+    #schema?: Promise<JsonRpcSchema>;
+    schema() {
+        return this.#schema ??= this.router.schema();
+    }
+
+    #schemaHash?: Promise<string>;
+    async schemaHash() {
+        const schema = await this.schema();
+        return this.#schemaHash ??= hashObject(schema);
+    }
+
+    async schemaTypeScript(version: string) {
+        return [
+            `export default ${JSON.stringify(await this.schema())};`,
+            `export const hash = ${JSON.stringify(await this.schemaHash())};`,
+            `export const version = ${JSON.stringify(version)};`,
+        ].join('\n');
+    }
 
 }
