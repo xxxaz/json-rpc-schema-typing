@@ -1,5 +1,6 @@
 import { type JsonSerializable } from "@xxxaz/stream-api-json";
-import { JsonRpcError, JsonRpcResponse } from "./types.js";
+import { JsonRpcError } from "./types.js";
+import * as InitialDefinedErros from './JsonRpcException.js';
 
 type JsonRpcExceptionClass = {
     readonly defaultMessage?: string;
@@ -7,18 +8,21 @@ type JsonRpcExceptionClass = {
     new(message?: string, data?: JsonSerializable): JsonRpcException;
 };
 
-const defined: Map<JsonRpcExceptionClass, string> = new Map();
-
-function defineExceptions(classes: { [name: string]: JsonRpcExceptionClass }) {
-    Object.entries(classes).forEach(([ name, cls ])=> {
-        if(!defined.has(cls)) defined.set(cls, name);
-    });
-}
-
 export abstract class JsonRpcException extends Error {
+    static #defined: Map<JsonRpcExceptionClass, string> = new Map();
+    static defineExceptions(classes: { [name: string]: object }) {
+        Object.entries(classes).forEach(([ name, cls ])=> {
+            if(!JsonRpcException.isPrototypeOf(cls)) return;
+            const ex = cls as JsonRpcExceptionClass;
+            if(!this.#defined.has(ex) && ex.code) {
+                this.#defined.set(ex, name);
+            }
+        });
+    }
+
     static deserialize(error: JsonRpcError): JsonRpcException {
         const { code, message, data } = error;
-        for(const cls of defined.keys()) {
+        for(const cls of this.#defined.keys()) {
             if(cls.code !== code) continue;
             return new cls(message, data);
         }
@@ -34,7 +38,7 @@ export abstract class JsonRpcException extends Error {
     readonly data?: JsonSerializable;
 
     get name(): string {
-        return defined.get(this.constructor as JsonRpcExceptionClass)
+        return JsonRpcException.#defined.get(this.constructor as JsonRpcExceptionClass)
             ?? this.constructor.name;
     }
 
@@ -87,7 +91,6 @@ export class InvalidContext extends InternalError {
 export class InvalidReturn extends InternalError {
 }
 
-defineExceptions({ ParseError, InvalidRequest, MethodNotFound, InvalidParams, InvalidContext, InvalidReturn, InternalError });
 
 /**
  * 
@@ -103,7 +106,7 @@ export abstract class ServerError extends JsonRpcException {
                 throw new Error(`Defined ServerError code must be between -32000 to -32099 (${name} ${cls.code})`);
             }
         });
-        defineExceptions(classes);
+        JsonRpcException.defineExceptions(classes);
     }
 }
 
@@ -123,3 +126,10 @@ export class ClientHttpError extends JsonRpcException {
         super(message, data);
     }
 }
+export class WebSocketConnectionError extends JsonRpcException {
+    constructor(message: string, data?: JsonSerializable) {
+        super(message, data);
+    }
+}
+
+JsonRpcException.defineExceptions(InitialDefinedErros);

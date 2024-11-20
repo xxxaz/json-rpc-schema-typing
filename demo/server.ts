@@ -1,9 +1,11 @@
 import { createServer } from 'http';
 import { FileSystemRouter } from '../src/router/FileSystemRouter.js';
 import { JsonRpcHttpReceiver } from '../src/server/JsonRpcHttpReceiver.js';
+import { JsonRpcWebSocketReceiver } from '../src/server/JsonRpcWebSocketReceiver.js';
 import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { writeFileSync } from 'fs';
+import { WebSocketServer } from 'ws';
 
 
 type Ctx = {};
@@ -15,8 +17,21 @@ const router = new FileSystemRouter<Ctx>(resolve(__dirname, 'methods'));
 const script = await router.schemaTypeScript('demo');
 writeFileSync(resolve(__dirname, 'schema.ts'), script);
 
-const server = new JsonRpcHttpReceiver<Ctx>(router);
-createServer(async (request, response) => {
-    server.serve({}, request, response);
-})
-.listen(3000);
+const httpRpc = new JsonRpcHttpReceiver<Ctx>(router);
+const wsRpc = new JsonRpcWebSocketReceiver<Ctx>(router);
+
+const httpServer = createServer(async (request, response) => {
+    httpRpc.serve({}, request, response);
+});
+
+const wsServer = new WebSocketServer({ server: httpServer });
+wsServer.on('connection', (socket, request) => {
+    const { url, headers } = request;
+    const { pathname, searchParams } = new URL(url ?? '/', 'http://localhost');
+    if (pathname === '/ws') {
+        wsRpc.serve({}, socket);
+    }
+
+});
+
+httpServer.listen(3000);
