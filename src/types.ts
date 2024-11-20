@@ -27,3 +27,13 @@ export type JsonRpcResponse<Result extends JsonSerializable> = {
     readonly id: number|string|null;
     readonly error: JsonRpcError;
 };
+
+
+export type MessageListener = (ev: MessageEvent) => void;
+export type MessageInput = {
+    addEventListener(type: 'message', listener: MessageListener): void;
+    removeEventListener(type: 'message', listener: MessageListener): void;
+};
+export type MessageOutput = {
+    postMessage(message: any): void;
+};

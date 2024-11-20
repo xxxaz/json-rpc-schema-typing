@@ -1,4 +1,5 @@
 import { Serializable } from "@xxxaz/stream-api-json/types";
+import { JsonRpcRequest, JsonRpcResponse } from "./types.js";
 
 export function toStream<T>(src: T) {
     return new ReadableStream<T>({
@@ -26,4 +27,28 @@ export async function readStreamAll(stream: ReadableStream<string|Uint8Array>) :
         if (done) break;
     }
     return new Blob(result);
+}
+
+export function isRpcRequest(data: any): data is JsonRpcRequest {
+    return (
+        data instanceof Object
+        &&
+        data.jsonrpc === '2.0'
+        &&
+        typeof data.method === 'string'
+    );
+}
+
+export function isRpcResponse(data: any): data is JsonRpcResponse<any> {
+    return (
+        data instanceof Object
+        &&
+        data.jsonrpc === '2.0'
+        &&
+        (
+            'result' in data
+            ||
+            'error' in data
+        )
+    );
 }
