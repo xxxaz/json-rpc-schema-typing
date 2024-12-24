@@ -37,3 +37,19 @@ export type MessageInput = {
 export type MessageOutput = {
     postMessage(message: any): void;
 };
+
+type FitMin<N extends number, C extends void[] = []> = C['length'] extends N ? C : FitMin<N, [void, ...C]>;
+type FitMax<N extends number, C extends void[] = FitMin<N>> = [void, ...C]['length'] extends N ? FitMax<N, [void, ...C]> : C;
+
+export type Min<NumLiteral extends number> = FitMin<NumLiteral> extends any[] ? FitMin<NumLiteral>['length']: never;
+export type Max<NumLiteral extends number> = FitMax<NumLiteral> extends any[] ? FitMax<NumLiteral>['length'] : never;
+
+export type IsOptional<A, T, F = never> = A|undefined extends A ? T : F;
+export type IsNever<A, T, F = never> = [A] extends [never] ? T : F;
+export type PerfectMatch<A, B, T, F = never> = [A] extends [B] ? ([B] extends [A] ? T : F) : F;
+
+export type OptionalKeys<T> = Exclude<{ [K in keyof T]: IsOptional<T[K], K, never> }[keyof T], undefined>;
+export type RequiredKeys<T> = Exclude<keyof T, OptionalKeys<T>>;
+
+declare const InvalidRef: unique symbol;
+export type InvalidRef<Msg> = Omit<Msg&[never], keyof Msg|keyof [never]>;

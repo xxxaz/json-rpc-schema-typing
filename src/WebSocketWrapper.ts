@@ -1,5 +1,5 @@
 import { type WebSocket as NodeWebSocket, type RawData } from 'ws';
-import { Serializable } from "@xxxaz/stream-api-json/types";
+import { JsonSerializable } from "@xxxaz/stream-api-json";
 
 export type WrapableWebSocket = WebSocket|NodeWebSocket;
 export function wrapWebSocket(socket: WrapableWebSocket, listener: SocketListener, closedListener: ScokcetClosedListener) {
@@ -16,7 +16,7 @@ type ClosedData = {
     wrapper: WebSocketWrapper;
 };
 
-type SocketListener = (data: Serializable) => void;
+type SocketListener = (data: JsonSerializable) => void;
 type ScokcetClosedListener = (data: ClosedData) => void;
 
 type ConnectionState = 'CONNECTING'|'OPEN'|'CLOSING'|'CLOSED';
@@ -26,7 +26,7 @@ export interface WebSocketWrapper<Socket extends WrapableWebSocket = WrapableWeb
     readonly socket: Socket;
     readonly listener: SocketListener;
     readonly readyState: WebSocketState;
-    send(data: Serializable): void;
+    send(data: JsonSerializable): void;
     close(): void;
 }
 
@@ -48,7 +48,7 @@ export class NodeWebSocketWrapper implements WebSocketWrapper<NodeWebSocket> {
         return this.socket.readyState;
     }
 
-    send(data: Serializable): void {
+    send(data: JsonSerializable): void {
         this.socket.send(JSON.stringify(data));
     }
 
@@ -62,7 +62,7 @@ export class NodeWebSocketWrapper implements WebSocketWrapper<NodeWebSocket> {
         this.listener(parsed);
     };
 
-    async #parseMessage(data: RawData) : Promise<Serializable> {
+    async #parseMessage(data: RawData) : Promise<JsonSerializable> {
         if (data instanceof ArrayBuffer) {
             return JSON.parse(await new Blob([data]).text());
         }
@@ -95,7 +95,7 @@ export class BrowserWebSocketWrapper implements WebSocketWrapper<WebSocket> {
         this.listener(ev.data);
     };
 
-    send(data: Serializable): void {
+    send(data: JsonSerializable): void {
         this.socket.send(JSON.stringify(data));
     }
 

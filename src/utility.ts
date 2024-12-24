@@ -1,4 +1,4 @@
-import { Serializable } from "@xxxaz/stream-api-json/types";
+import { JsonSerializable } from "@xxxaz/stream-api-json";
 import { JsonRpcRequest, JsonRpcResponse } from "./types.js";
 
 export function toStream<T>(src: T) {
@@ -10,7 +10,7 @@ export function toStream<T>(src: T) {
     });
 }
 
-export function stringifyStream(json: Serializable) {
+export function stringifyStream(json: JsonSerializable) {
     return toStream(JSON.stringify(json));
 }
 

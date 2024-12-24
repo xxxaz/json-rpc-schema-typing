@@ -1,4 +1,9 @@
-import { IncomingMessage, OutgoingHttpHeaders, ServerResponse } from 'http';
+import { type IncomingMessage as Http1ServerRequest, type OutgoingHttpHeaders as OutgoingHttp1Headers, type ServerResponse as HttpaServerResponse } from 'http';
+import { type Http2ServerRequest, type OutgoingHttpHeaders as OutgoingHttp2Headers, type Http2ServerResponse } from 'http2';
+type HttpServerRequest = Http1ServerRequest | Http2ServerRequest;
+type HttpServerResponse = HttpaServerResponse | Http2ServerResponse;
+type OutgoingHttpHeaders = OutgoingHttp1Headers | OutgoingHttp2Headers;
+
 import { Readable } from 'stream';
 import { JsonStreamingParser, ParsingJsonArray, ParsingJsonTypes, StringifyingJsonArray } from '@xxxaz/stream-api-json';
 import { JsonRpcServer } from './JsonRpcServer.js';
@@ -27,7 +32,7 @@ export class JsonRpcHttpReceiver<Ctx> extends JsonRpcServer<Ctx> {
     readonly #responseConverter?: (response: ReadableStream<string>) => ReadableStream<Uint8Array|string>;
     readonly #headers: OutgoingHttpHeaders;
 
-    #convertRequesrt(request: IncomingMessage) {
+    #convertRequesrt(request: HttpServerRequest) {
         if (!this.#requestConverter) return request;
         const stream = new ReadableStream({
             start(controller) {
@@ -44,7 +49,7 @@ export class JsonRpcHttpReceiver<Ctx> extends JsonRpcServer<Ctx> {
         return this.#responseConverter(response);
     }
 
-    async serve(context: Ctx, request: IncomingMessage, response: ServerResponse): Promise<void> {
+    async serve(context: Ctx, request: HttpServerRequest, response: HttpServerResponse): Promise<void> {
         try {
             const root = await JsonStreamingParser
                 .readFrom(this.#convertRequesrt(request))

@@ -1,13 +1,13 @@
-import { Serializable } from "@xxxaz/stream-api-json/types";
+import { JsonSerializable } from "@xxxaz/stream-api-json";
 
-export async function hashObject(src: Serializable): Promise<string> {
+export async function hashObject(src: JsonSerializable): Promise<string> {
     const json = orderGuaranteeJson(src);
     const srcBuffer = await new Blob([json]).arrayBuffer();
     const hashBuffer = await crypto.subtle.digest("SHA-256", srcBuffer);
     return [...new Uint8Array(hashBuffer)].map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-function orderGuaranteeJson(src: Serializable): string {
+function orderGuaranteeJson(src: JsonSerializable): string {
     if (src === undefined) return 'null';
     if (src === null) return 'null';
     switch (typeof src) {

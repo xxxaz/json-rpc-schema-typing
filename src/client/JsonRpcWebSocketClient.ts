@@ -1,10 +1,10 @@
 import { LazyResolvers } from "@xxxaz/stream-api-json/utility";
+import { JsonSerializable } from "@xxxaz/stream-api-json";
 import { JsonRpcSchema } from "../router/JsonRpcRouter.js";
 import { GenereteId, JsonRpcClient } from "./JsonRpcClient.js";
 import { isRpcResponse, readStreamAll } from "../utility.js";
 import { JsonRpcError, JsonRpcRequest, JsonRpcResponse } from "../types.js";
 import { WebSocketWrapper, WrapableWebSocket, wrapWebSocket } from '../WebSocketWrapper.js';
-import { Serializable } from "@xxxaz/stream-api-json/types";
 
 type JsonRpcWebSocketClientOptions<Sch extends JsonRpcSchema, Skt extends WrapableWebSocket> = {
     schema: Sch;
@@ -36,7 +36,7 @@ export class JsonRpcWebSocketClient<Sch extends JsonRpcSchema, Skt extends Wrapa
                 this.rejectAll({
                     code: -32000,
                     message: 'Connection closed',
-                    data: { code, reason, wasClean } as Serializable,
+                    data: { code, reason, wasClean } as JsonSerializable,
                 });
             }
         );
@@ -108,7 +108,7 @@ export class JsonRpcWebSocketClient<Sch extends JsonRpcSchema, Skt extends Wrapa
         return resolver?.promise ?? null;
     }
 
-    async #receive(data: Serializable) {
+    async #receive(data: JsonSerializable) {
         if (!isRpcResponse(data)) {
             console.debug('message is not JsonRpcResponse', data);
             return;

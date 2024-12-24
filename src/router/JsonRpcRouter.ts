@@ -1,4 +1,4 @@
-import { Serializable } from "@xxxaz/stream-api-json/types";
+import { JsonSerializable } from "@xxxaz/stream-api-json";
 import { JsonRpcMethodDefinition, JsonRpcMethodSchema, Params, Return } from "../JsonRpcMethod.js";
 import { hashObject } from "./hashObject.js";
 
@@ -40,7 +40,7 @@ export abstract class JsonRpcRouter<Context = {}> {
     }
 }
 
-export type JsonRpcSchema = Serializable & {
+export type JsonRpcSchema = JsonSerializable & {
     readonly [path: string]: JsonRpcMethodSchema<any, any>|JsonRpcSchema;
 };
 

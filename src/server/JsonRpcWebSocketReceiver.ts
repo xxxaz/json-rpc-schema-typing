@@ -2,10 +2,10 @@ import { JsonRpcServer } from './JsonRpcServer.js';
 import { JsonRpcRequest } from '../types.js';
 import { isRpcRequest } from '../utility.js';
 import { WebSocketWrapper, WrapableWebSocket, wrapWebSocket } from '../WebSocketWrapper.js';
-import { Serializable } from '@xxxaz/stream-api-json/types';
+import { JsonSerializable } from '@xxxaz/stream-api-json';
 
 export class JsonRpcWebSocketReceiver<Ctx> extends JsonRpcServer<Ctx> {
-    async #onMessage(context: Ctx, socket: WebSocketWrapper, data: Serializable) {
+    async #onMessage(context: Ctx, socket: WebSocketWrapper, data: JsonSerializable) {
         const request
             = (data instanceof Array && data.some(isRpcRequest))
                 ? data as JsonRpcRequest[]
@@ -29,7 +29,7 @@ export class JsonRpcWebSocketReceiver<Ctx> extends JsonRpcServer<Ctx> {
     readonly #sockets = new Map<WrapableWebSocket, WebSocketWrapper>();
     serve(context: Ctx, socket: WrapableWebSocket) {
         if (this.#sockets.has(socket)) return;
-        const listener = (data: Serializable) => this.#onMessage(context, wrapper, data);
+        const listener = (data: JsonSerializable) => this.#onMessage(context, wrapper, data);
         const wrapper = wrapWebSocket(
             socket,
             listener,
