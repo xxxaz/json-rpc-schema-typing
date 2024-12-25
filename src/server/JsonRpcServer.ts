@@ -62,7 +62,7 @@ export class JsonRpcServer<Context> {
         }
     };
 
-    async * batch(ctx: Context, requests: AsyncIterable<JsonRpcRequest>) {
+    async * batch(ctx: Context, requests: AsyncIterable<JsonRpcRequest>|Iterable<JsonRpcRequest>) {
         const promises: { [id: number|string]: Promise<JsonRpcResponse<any>>} = {};
         let loading: LazyResolvers<void> = new LazyResolvers();
         let loadedAll = false;
