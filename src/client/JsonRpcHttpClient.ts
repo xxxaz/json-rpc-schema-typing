@@ -4,6 +4,8 @@ import { JsonRpcSchema } from "../router/JsonRpcRouter.js";
 import { GenereteId, JsonRpcClient } from "./JsonRpcClient.js";
 import { emptyStrem, readStreamAll } from "../utility.js";
 
+type HeadersGenerator = (body: Blob) => Promise<HeadersInit>|HeadersInit;
+
 type JsonRpcHttpClientOptions<Sch extends JsonRpcSchema> = {
     schema: Sch;
     generateId?: GenereteId;
@@ -11,7 +13,7 @@ type JsonRpcHttpClientOptions<Sch extends JsonRpcSchema> = {
     batchUrl?: string|URL;
     requestConverter?: (request: ReadableStream<string>) => ReadableStream<Uint8Array>;
     responseConverter?: (response: ReadableStream<Uint8Array>, contentType: string|null) => ReadableStream<string>;
-    headers?: HeadersInit;
+    headers?: HeadersGenerator|HeadersInit;
     init?: Pick<RequestInit, 'credentials'|'keepalive'|'mode'|'priority'|'redirect'|'referrer'|'referrerPolicy'>;
 };
 
@@ -30,14 +32,19 @@ export class JsonRpcHttpClient<Sch extends JsonRpcSchema> extends JsonRpcClient<
 
         this.#requestConverter = options.requestConverter;
         this.#responseConverter = options.responseConverter;
-        const headers = new Headers(options.headers);
-        if (!headers.has('Content-Type')) {
-            headers.set('Content-Type', 'application/json');
-        }
-        this.#init = {
-            ...options.init,
-            method: 'POST',
-            headers,
+        this.#initGenerator = async (body) => {
+            const init = options.headers;
+            const headers = (typeof init === 'function')
+                ? new Headers(await init(body))
+                : new Headers(init);
+            if (!headers.has('Content-Type')) {
+                headers.set('Content-Type', 'application/json');
+            }
+            return {
+                ...options.init,
+                method: 'POST',
+                headers,
+            };
         };
     }
 
@@ -45,12 +52,13 @@ export class JsonRpcHttpClient<Sch extends JsonRpcSchema> extends JsonRpcClient<
     readonly batchUrl: string|URL;
     readonly #requestConverter?: (request: ReadableStream<string>) => ReadableStream<any>;
     readonly #responseConverter?: (response: ReadableStream<any>, contentType: string|null) => ReadableStream<string>;
-    readonly #init: RequestInit;
+    readonly #initGenerator: (body: Blob) => Promise<RequestInit>;
 
     async #post(url: string|URL, request: ReadableStream<string>) {
         if (this.#requestConverter) request = this.#requestConverter(request);
         const body = await readStreamAll(request);
-        const response = await fetch(url, { ...this.#init, body });
+        const init = await this.#initGenerator(body);
+        const response = await fetch(url, { ...init, body });
         if (!response.ok) {
             const message = `${response.status} ${response.statusText}`;
             const headers = Object.fromEntries(response.headers.entries());

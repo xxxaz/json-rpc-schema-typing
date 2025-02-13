@@ -1,8 +1,18 @@
 import { IsOptional, JSONSchema, Max, RequiredKeys } from "../types.js";
 
+
+const $optionalKey = Symbol('$Optional');
+type OSchema = JSONSchema & { [$optionalKey]?: true };
 export function $Optional<T extends JSONSchema>(item: T) {
-    return item as T|undefined;
+    return {
+        ...item,
+        [$optionalKey]: true
+    } as T|undefined;
 }
+$Optional.key = $optionalKey;
+$Optional.is = (item: JSONSchema|undefined): item is OSchema => {
+    return Boolean(item && (item as OSchema)[$optionalKey] === true);
+};
 
 export function $Array<T extends JSONSchema>(items: T) {
     return {
@@ -17,22 +27,25 @@ export function $Tuple<T extends JSONSchema[]>(...items: T) {
     return {
         type: 'array',
         items,
-        minItems: items.length as RequiredLength<T>,
+        minItems: items.lastIndexOf((i: OSchema) => !$Optional.is(i)) + 1 as RequiredLength<T>,
         maxItems: items.length as Max<T['length']>,
     } as const;
 }
 
 type ObjectDefine = {
-    [key: string]: JSONSchema|undefined;
+    [key: string]: OSchema|undefined;
 };
 type Properties<T extends ObjectDefine> = {
     [K in keyof T]: Exclude<T[K], undefined>;
 }
 export function $Object<T extends ObjectDefine>(properties: T) {
+    const required = Object.entries(properties)
+        .filter(([key, value]) => !$Optional.is(value))
+        .map(([key]) => key) as [RequiredKeys<T>];
     return {
         type: 'object',
         additionalProperties: false,
-        required: Object.keys(properties) as [RequiredKeys<T>],
+        required,
         properties: properties as Properties<T>
     } as const;
 }

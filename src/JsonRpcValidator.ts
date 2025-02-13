@@ -2,6 +2,7 @@ import { Ajv } from 'ajv';
 import { JsonRpcMethodSchema, Params, Return } from "./JsonRpcMethod.js";
 import { JSONSchema } from "./types.js";
 import { InvalidParams, InvalidReturn } from './JsonRpcException.js';
+import { $Optional } from './schemas/Structure.js';
 
 function validate(data: unknown, schema: JSONSchema) {
     const ajv = new Ajv();
@@ -26,7 +27,7 @@ export class JsonRpcValidator<Sch extends JsonRpcMethodSchema<any, any>> {
     }
     
     validateParams(params: unknown[]): params is Params<Sch['$params']> {
-        const shorten = this.#params.slice(params.length).every(({ optional }) => optional);
+        const shorten = this.#params.slice(params.length).every($Optional.is);
         const schema = shorten ? this.#params.slice(0, params.length) : this.#params;
 
         const errors = schema

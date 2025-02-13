@@ -19,10 +19,14 @@ export class JsonRpcServer<Context> {
 
     private async pickMethodDefine(methodPath: string): Promise<MethodDef<Context>> {
         const picked = await this.router.resolve(methodPath) as MethodDef<Context>|null;
-        if (picked?.[JsonRpcMethodDefinition.method] instanceof Function) {
+        if (!picked) {
+            throw new MethodNotFound(`Definition of method ${methodPath} is not Found.`);
+        }
+        const methodKey = (picked.constructor as typeof JsonRpcMethodDefinition).method as keyof MethodDef<Context>;
+        if (picked[methodKey] instanceof Function) {
             return picked;
         }
-        throw new MethodNotFound(`method ${methodPath} is not Found.`);
+        throw new MethodNotFound(`Definition ${methodPath} dose not have method.`);
     }
 
     private async execute(ctx: Context, request: JsonRpcRequest) {
