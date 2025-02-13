@@ -29,13 +29,12 @@ export abstract class JsonRpcRouter<Context = {}> {
     }
     
 
-    async schemaTypeScript(version: string) {
+    async schemaTypeScript() {
         const schema = await this.schema();
         const hash = await hashObject(schema);
         return [
             `export default ${JSON.stringify(schema)} as const;`,
             `export const hash = ${JSON.stringify(hash)} as const;`,
-            `export const version = ${JSON.stringify(version)} as const;`,
         ].join('\n');
     }
 }

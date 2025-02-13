@@ -34,7 +34,7 @@ export class FileSystemRouter<Ctx> extends JsonRpcRouter<Ctx> {
         
         try {
             const module = await import(filePath);
-            if(module.default instanceof JsonRpcMethodDefinition) {
+            if('$params' in module.default) {
                 return this.#cache[methodPath] = module.default;
             }
             console.warn(`Ignoring routing without default export as JsonRpcMethodDefinition: ${path}`);
