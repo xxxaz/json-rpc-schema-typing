@@ -1,9 +1,9 @@
 import { JsonSerializable } from "@xxxaz/stream-api-json";
-import { JsonRpcMethodDefinition, JsonRpcMethodSchema, Params, Return } from "../JsonRpcMethod.js";
+import { JsonRpcMethodDefinition, JsonRpcMethodSchema, ParameterSchema, Params, Return } from "../JsonRpcMethod.js";
 import { hashObject } from "./hashObject.js";
 
-type AsyncFunction<P, R> = (...params: Params<P>) => Promise<Return<R>>;
-type NoticeFunction<Prm> = (...params: Params<Prm>) => void;
+type AsyncFunction<P, R> = P extends ParameterSchema ? (...params: Params<P>) => Promise<Return<R>> : never;
+type NoticeFunction<P> = P extends ParameterSchema ? (...params: Params<P>) => void : never;
 
 export abstract class JsonRpcRouter<Context = {}> {
     abstract resolve(methodPath: string): Promise<JsonRpcRouter<Context>|JsonRpcMethodDefinition<Context, any, any>|null>;

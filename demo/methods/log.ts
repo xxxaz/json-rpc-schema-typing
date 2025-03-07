@@ -1,6 +1,6 @@
 import { $Number, $Or, $String, JsonRpcMethodDefinition } from '../../src/index.js';
 export default JsonRpcMethodDefinition.builder
-    .paramsSchema(
+    .paramsByPosition(
         $Or($Number, $String)
     )
     .define<unknown>(function(arg) {

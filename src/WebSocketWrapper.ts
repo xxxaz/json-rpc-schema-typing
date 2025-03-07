@@ -27,6 +27,7 @@ export interface WebSocketWrapper<Socket extends WrapableWebSocket = WrapableWeb
     readonly listener: SocketListener;
     readonly readyState: WebSocketState;
     send(data: JsonSerializable): void;
+    detach(): void;
     close(): void;
 }
 
@@ -52,8 +53,12 @@ export class NodeWebSocketWrapper implements WebSocketWrapper<NodeWebSocket> {
         this.socket.send(JSON.stringify(data));
     }
 
-    close(): void {
+    detach(): void {
         this.socket.off('message', this.#onMessage);
+    }
+
+    close(): void {
+        this.detach();
         this.socket.close();
     }
 
@@ -99,8 +104,12 @@ export class BrowserWebSocketWrapper implements WebSocketWrapper<WebSocket> {
         this.socket.send(JSON.stringify(data));
     }
 
-    close(): void {
+    detach(): void {
         this.socket.removeEventListener('message', this.#onMessage);
+    }
+
+    close(): void {
+        this.detach();
         this.socket.close();
     }
 }

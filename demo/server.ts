@@ -14,7 +14,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const router = new FileSystemRouter<Ctx>(resolve(__dirname, 'methods'));
-const script = await router.schemaTypeScript('demo');
+const script = await router.schemaTypeScript();
 writeFileSync(resolve(__dirname, 'schema.ts'), script);
 
 const httpRpc = new JsonRpcHttpReceiver<Ctx>(router);

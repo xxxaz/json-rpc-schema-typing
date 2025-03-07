@@ -14,9 +14,10 @@ export class FileSystemRouter<Ctx> extends JsonRpcRouter<Ctx> {
         if (!stat.isDirectory()) throw new Error(`Not a directory: ${rootDir}`);
     }
 
-    // instanceof だとモジュールが重複した際に問題が派生する
+    // instanceof JsonRpcMethodDefinition だと参照先モジュールが複数存在した際に一致しなくなる
     static #isDefinition(obj: any): obj is JsonRpcMethodDefinition<any, any, any> {
-        return obj && obj.$params instanceof Array;
+        const key = obj?.constructor?.method;
+        return typeof key === 'symbol' && obj[key] instanceof Function;
     }
 
     #cache = {} as RouteCache<Ctx>;
@@ -42,7 +43,6 @@ export class FileSystemRouter<Ctx> extends JsonRpcRouter<Ctx> {
             if (FileSystemRouter.#isDefinition(module.default)) {
                 return this.#cache[methodPath] = module.default;
             }
-            console.warn(`Ignoring routing without default export as JsonRpcMethodDefinition: ${path}`);
         } catch(e) {
             console.error(`Invalid routing: ${path}`, e);
         }

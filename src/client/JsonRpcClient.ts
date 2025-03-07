@@ -1,6 +1,6 @@
 import { JsonStreamingParser, ParsingJsonArray } from '@xxxaz/stream-api-json';
 import { ClientUncaughtError, JsonRpcException } from "../JsonRpcException.js";
-import { JsonRpcMethodSchema, Params, Return } from "../JsonRpcMethod.js";
+import { JsonRpcMethodSchema, ParameterSchema, Params, Return } from "../JsonRpcMethod.js";
 import { JsonRpcValidator } from "../JsonRpcValidator.js";
 import { type JsonRpcSchema } from "../router/JsonRpcRouter.js";
 import { JsonRpcRequest, JsonRpcResponse } from "../types.js";
@@ -22,7 +22,7 @@ const $generateId: unique symbol = Symbol('GenereteId');
 const $requestStack: unique symbol = Symbol('RequestsStack');
 const $methodPath: unique symbol = Symbol('MethodPath');
 
-type TriggerFunction<ParamSch extends ReadonlyArray<any>, RtnSch> = {
+type TriggerFunction<ParamSch extends ParameterSchema, RtnSch> = {
     (...args: Params<ParamSch>): Promise<Return<RtnSch>>;
     notice(...args: Params<ParamSch>): void;
 };
