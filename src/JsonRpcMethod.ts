@@ -1,5 +1,4 @@
-import { type FromSchema } from 'json-schema-to-ts';
-import { type JSONSchema } from "./types.js";
+import { type JSONSchema, type FromSchema } from "./types.js";
 import { InvalidContext } from './JsonRpcException.js';
 import { $Object, $Tuple } from './schemas/Structure.js';
 
@@ -98,5 +97,14 @@ class DefinitionBuilder<CtxCls extends ContextClass<any>|undefined, PrmSch exten
 
     return<NewRtn extends JSONSchema|undefined>(rtn: NewRtn) {
         return new DefinitionBuilder(this.$contextClass, this.$params, rtn);
+    }
+
+    /** @deprecated paramsByPosition を使用してください */
+    paramsSchema<NewPrm extends readonly JSONSchema[]>(...params: NewPrm) {
+        return this.paramsByPosition(...params);
+    }
+    /** @deprecated return を使用してください */
+    returnSchema<NewRtn extends JSONSchema|undefined>(rtn: NewRtn) {
+        return this.return(rtn);
     }
 }

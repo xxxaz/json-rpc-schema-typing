@@ -1,3 +1,5 @@
+#!/usr/bin/env -S node --no-warnings=ExperimentalWarning --loader=ts-node/esm
+
 import { JsonRpcHttpClient } from '../src/client/JsonRpcHttpClient.js';
 import { JsonRpcWebSocketClient } from '../src/client/JsonRpcWebSocketClient.js';
 import schema, { hash } from './schema.js';

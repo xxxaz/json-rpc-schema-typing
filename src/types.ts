@@ -1,5 +1,29 @@
-import { type JSONSchema as ToTsSchema } from 'json-schema-to-ts';
+import { FromSchema as ToTsFromSchema, type JSONSchema as ToTsSchema } from 'json-schema-to-ts';
 import { type JsonSerializable } from "@xxxaz/stream-api-json";
+
+export type TupleSchema<T extends JSONSchema[]> = {
+    type: 'array';
+    items: T;
+    minItems: number;
+    maxItems: number;
+};
+
+export type IsOptionalSchema<Sch, T, F> = false extends (Sch extends { oneOf: readonly ToTsSchema[] } ? Sch['oneOf'][number] : never) ? T : F;
+type FromTuples<Schemas> = 
+    Schemas extends [infer Head extends JSONSchema, ...infer Tail]
+        ? (
+            IsOptionalSchema<Head,
+                [t?: ToTsFromSchema<Head>, ...FromTuples<Tail>],
+                [ToTsFromSchema<Head>, ...FromTuples<Tail>]
+            >
+        ) : [];
+
+export type FromSchema<T extends JSONSchema>
+= (
+    T extends TupleSchema<infer U>
+        ? FromTuples<U>
+        : ToTsFromSchema<T>
+) | IsOptionalSchema<T,  undefined, never>;
 
 export type JSONSchema = ToTsSchema & object;
 

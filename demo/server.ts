@@ -1,3 +1,5 @@
+#!/usr/bin/env -S node --no-warnings=ExperimentalWarning --loader=ts-node/esm
+
 import { createServer } from 'http';
 import { FileSystemRouter } from '../src/router/FileSystemRouter.js';
 import { JsonRpcHttpReceiver } from '../src/server/JsonRpcHttpReceiver.js';

@@ -23,7 +23,7 @@ export class JsonRpcWebSocketReceiver<Ctx> extends JsonRpcServer<Ctx> {
                 ? await Promise.all(request.map(req => this.call(context, req)))
                 : await this.call(context, request);
 
-        socket.send(JSON.stringify(response));
+        socket.send(response);
     };
 
     readonly #sockets = new Map<WrapableWebSocket, WebSocketWrapper>();

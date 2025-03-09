@@ -1,5 +1,5 @@
 import { Primitive } from "@xxxaz/stream-api-json";
-import { JSONSchema } from "../types.js";
+import { JSONSchema, IsOptionalSchema } from "../types.js";
 
 export function $Enum<T extends (null|boolean|number|string)[]>(...elements: T) {
     return {
@@ -25,6 +25,15 @@ export function $Expand<Src extends JSONSchema, Ex extends Partial<JSONSchema>>(
         ...expand,
     } as const;
 }
+
+export function $Optional<T extends JSONSchema>(item: T) {
+    return {
+        oneOf: [item, false]
+    } as const;
+}
+$Optional.is = (item: JSONSchema|undefined): boolean => {
+    return Boolean((item?.oneOf ?? item?.anyOf ?? []).some(i => i === false));
+};
 
 export function $And<Schemas extends JSONSchema[]>(...allOf: Schemas) {
     return {

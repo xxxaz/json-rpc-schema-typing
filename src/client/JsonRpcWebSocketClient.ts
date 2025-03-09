@@ -74,8 +74,12 @@ export class JsonRpcWebSocketClient<Sch extends JsonRpcSchema, Skt extends Wrapa
 
         return new ReadableStream({
             async start(controller) {
+                const initialCount = promises.size;
                 controller.enqueue('[');
                 while(promises.size > 0) {
+                    if (promises.size < initialCount) {
+                        controller.enqueue(',');
+                    }
                     const response = await Promise.race(promises.values());
                     controller.enqueue(JSON.stringify(response));
                     promises.delete(response.id!);

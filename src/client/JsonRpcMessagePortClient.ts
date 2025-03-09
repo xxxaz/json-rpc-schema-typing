@@ -102,7 +102,7 @@ export class JsonRpcMessagePortClient<Sch extends JsonRpcSchema> extends JsonRpc
 
     async #receive(event: MessageEvent) {
         if (event.source && event.source !== this.#output) return;
-        const { data } = event;
+        const data = JSON.parse(event.data);
         if (!isRpcResponse(data)) {
             console.debug('message is not JsonRpcResponse', data);
             return;

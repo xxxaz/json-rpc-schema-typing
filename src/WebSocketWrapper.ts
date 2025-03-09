@@ -97,8 +97,23 @@ export class BrowserWebSocketWrapper implements WebSocketWrapper<WebSocket> {
     }
 
     readonly #onMessage = async (ev: MessageEvent) => {
-        this.listener(ev.data);
+        const parsed = await this.#parseMessage(ev.data);
+        this.listener(parsed);
     };
+
+    async #parseMessage(data: ArrayBuffer|string|object) : Promise<JsonSerializable> {
+        if (data instanceof ArrayBuffer) {
+            return JSON.parse(await new Blob([data]).text());
+        }
+        try {
+            if (typeof data === 'string') {
+                return JSON.parse(data);
+            }
+        } catch (e) {
+            console.error('failed to parse message', data, e);
+        }
+        return data as JsonSerializable;
+    }
 
     send(data: JsonSerializable): void {
         this.socket.send(JSON.stringify(data));

@@ -46,7 +46,7 @@ export function isRpcResponse(data: any): data is JsonRpcResponse<any> {
         data.jsonrpc === '2.0'
         &&
         (
-            'result' in data
+            'id' in data
             ||
             'error' in data
         )

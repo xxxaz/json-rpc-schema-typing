@@ -1,3 +1,5 @@
+#!/usr/bin/env -S node --no-warnings=ExperimentalWarning --loader=ts-node/esm
+
 import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { writeFileSync } from 'fs';
