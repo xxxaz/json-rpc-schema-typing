@@ -55,11 +55,12 @@ export class JsonRpcMethodDefinition<Context, PrmSch extends ParameterSchema, Rt
         this[methodKey] = method;
     }
 
-    apply(ctx: Context, params: Params<PrmSch>) {
+    $apply(ctx: Context, params: any) {
         if(this.$contextClass && !(ctx instanceof this.$contextClass)) {
             const passedCtxType = (ctx as any)?.constructor?.name ?? typeof ctx;
             throw new InvalidContext(`Invalid context: expected ${this.$contextClass.name} but got ${passedCtxType}`);
         }
+        if (this.$params?.type === 'object') params = [params];
         return this[methodKey].apply(ctx, params);
     }
 

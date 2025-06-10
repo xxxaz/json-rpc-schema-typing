@@ -38,7 +38,7 @@ export class JsonRpcServer<Context> {
             const validator = new JsonRpcValidator(picked);
 
             validator.validateParams(params);
-            const result = await picked.apply(ctx, params);
+            const result = await picked.$apply(ctx, params);
             try {
                 validator.validateReturn(result);
             } catch (e) {
