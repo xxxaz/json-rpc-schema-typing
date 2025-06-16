@@ -1,4 +1,4 @@
-import { responseToTextStream } from "@xxxaz/stream-api-json";
+import { responseToTextStream } from "@xxxaz/stream-api-json/helpers-browser";
 import { ClientHttpError } from "../JsonRpcException.js";
 import { JsonRpcSchema } from "../router/JsonRpcRouter.js";
 import { GenereteId, JsonRpcClient } from "./JsonRpcClient.js";

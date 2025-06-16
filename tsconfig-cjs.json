@@ -6,6 +6,12 @@
         "paths": {
             "@xxxaz/stream-api-json/utility": [
                 "./node_modules/@xxxaz/stream-api-json/types/utility.d.ts"
+            ],
+            "@xxxaz/stream-api-json/helpers-browser": [
+                "./node_modules/@xxxaz/stream-api-json/types/helpers-browser.d.ts"
+            ],
+            "@xxxaz/stream-api-json/helpers-node": [
+                "./node_modules/@xxxaz/stream-api-json/types/helpers-node.d.ts"
             ]
         }
     }
