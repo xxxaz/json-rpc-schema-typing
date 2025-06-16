@@ -16,7 +16,7 @@ type ByNameSchema = {
 export type ParameterSchema = ByPositionSchema|ByNameSchema|undefined;
 
 export interface JsonRpcMethodSchema<PrmSch extends ParameterSchema, RtnSch extends JSONSchema|undefined> {
-    readonly $params: PrmSch;
+    readonly $params?: PrmSch;
     readonly $return?: RtnSch;
 }
 

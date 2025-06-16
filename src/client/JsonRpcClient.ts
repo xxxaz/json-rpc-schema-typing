@@ -1,5 +1,5 @@
 import { JsonStreamingParser, ParsingJsonArray } from '@xxxaz/stream-api-json';
-import { ClientUncaughtError, JsonRpcException } from "../JsonRpcException.js";
+import { ClientUncaughtError, InvalidParams, JsonRpcException } from "../JsonRpcException.js";
 import { JsonRpcMethodSchema, ParameterSchema, Params, Return } from "../JsonRpcMethod.js";
 import { JsonRpcValidator } from "../JsonRpcValidator.js";
 import { type JsonRpcSchema } from "../router/JsonRpcRouter.js";
@@ -223,11 +223,11 @@ function getChild<Sch extends JsonRpcSchema>(schema: Sch, methodPath: string[], 
             const route = schema[key];
             if(!route) return undefined;
             const path = [...methodPath, key];
-            if('$params' in route) {
+            if('$params' in route || '$return' in route) {
                 const fn = triggerFunction(route as JsonRpcMethodSchema<any, any>, path, stack);
                 return cache[key] = fn;
             }
-            const child = getChild(route, path, stack);
+            const child = getChild(route as JsonRpcSchema, path, stack);
             return cache[key] = child;
         }
     });
@@ -236,14 +236,25 @@ function getChild<Sch extends JsonRpcSchema>(schema: Sch, methodPath: string[], 
 
 function triggerFunction<Sch extends JsonRpcMethodSchema<any, any>>(schema: Sch, methodPath: string[], stack: RequestsStack) : TriggerFunction<Sch['$params'], Sch['$return']> {
     const validator = new JsonRpcValidator(schema);
+    const validateParams = (params: any[]) => {
+        if(schema.$params?.type === 'object') {
+            if (params instanceof Array && params.length === 1) {
+                return validator.validateParams(params[0]);
+            } else {
+                throw new InvalidParams('Expected params to be an object but received multiple parameters.');
+            }
+        }
+        return validator.validateParams(params);
+    };
+
     const fn = async (...params: any[]) => {
-        validator.validateParams(params);
+        validateParams(params);
         const { result } = await stack.stack(true, methodPath, params) as { result: any };
         validator.validateReturn(result);
         return result;
     };
     fn.notice = (...params: any[]) => {
-        validator.validateParams(params);
+        validateParams(params);
         stack.stack(false, methodPath, params);
     };
     return fn;
