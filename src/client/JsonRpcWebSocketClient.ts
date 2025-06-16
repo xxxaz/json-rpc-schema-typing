@@ -1,5 +1,5 @@
 import { LazyResolvers } from "@xxxaz/stream-api-json/utility";
-import { JsonSerializable } from "@xxxaz/stream-api-json";
+import { type JsonSerializable } from "@xxxaz/stream-api-json";
 import { JsonRpcSchema } from "../router/JsonRpcRouter.js";
 import { GenereteId, JsonRpcClient } from "./JsonRpcClient.js";
 import { isRpcResponse, readStreamAll } from "../utility.js";

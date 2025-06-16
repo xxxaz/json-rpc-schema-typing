@@ -1,5 +1,5 @@
-import { Primitive } from "@xxxaz/stream-api-json";
-import { JSONSchema, IsOptionalSchema } from "../types.js";
+import { type Primitive } from "@xxxaz/stream-api-json";
+import { JSONSchema } from "../types.js";
 
 export function $Enum<T extends (null|boolean|number|string)[]>(...elements: T) {
     return {

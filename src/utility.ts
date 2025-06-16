@@ -1,4 +1,4 @@
-import { JsonSerializable } from "@xxxaz/stream-api-json";
+import { type JsonSerializable } from "@xxxaz/stream-api-json";
 import { JsonRpcRequest, JsonRpcResponse } from "./types.js";
 
 export function toStream<T>(src: T) {

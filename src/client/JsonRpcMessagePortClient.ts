@@ -1,9 +1,7 @@
-import { JsonStreamingParser, responseToTextStream, StringifyingJsonArray } from "@xxxaz/stream-api-json";
 import { LazyResolvers } from "@xxxaz/stream-api-json/utility";
-import { ClientHttpError } from "../JsonRpcException.js";
 import { JsonRpcSchema } from "../router/JsonRpcRouter.js";
 import { GenereteId, JsonRpcClient } from "./JsonRpcClient.js";
-import { emptyStrem, isRpcRequest, isRpcResponse, readStreamAll } from "../utility.js";
+import { isRpcResponse, readStreamAll } from "../utility.js";
 import { JsonRpcRequest, JsonRpcResponse, MessageInput, MessageOutput } from "../types.js";
 
 type JsonRpcMessagePortClientOptions<Sch extends JsonRpcSchema> = {

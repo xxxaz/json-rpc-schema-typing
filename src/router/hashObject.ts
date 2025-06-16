@@ -1,4 +1,4 @@
-import { JsonSerializable } from "@xxxaz/stream-api-json";
+import { type JsonSerializable } from "@xxxaz/stream-api-json";
 
 export async function hashObject(src: JsonSerializable): Promise<string> {
     const json = orderGuaranteeJson(src);

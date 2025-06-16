@@ -1,6 +1,6 @@
 {
     "name": "@xxxaz/json-rpc-schema-typing",
-    "version": "0.10.1",
+    "version": "0.10.2",
     "description": "",
     "author": "xxx Inc.",
     "license": "MIT",
@@ -27,10 +27,10 @@
             "default": "./esm/index.js"
         },
         "./*": {
-            "types": "./types/*.d.ts",
-            "require": "./cjs/*.js",
-            "import": "./esm/*.js",
-            "default": "./esm/*.js"
+            "types": "./types/*/index.d.ts",
+            "require": "./cjs/*/index.js",
+            "import": "./esm/*/index.js",
+            "default": "./esm/*/index.js"
         }
     },
     "files": [

@@ -1,4 +1,4 @@
-import { JsonSerializable } from "@xxxaz/stream-api-json";
+import { type JsonSerializable } from "@xxxaz/stream-api-json";
 import { JsonRpcMethodDefinition, JsonRpcMethodSchema, ParameterSchema, Params, Return } from "../JsonRpcMethod.js";
 import { hashObject } from "./hashObject.js";
 

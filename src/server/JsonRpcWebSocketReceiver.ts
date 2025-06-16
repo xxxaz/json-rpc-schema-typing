@@ -2,7 +2,7 @@ import { JsonRpcServer } from './JsonRpcServer.js';
 import { JsonRpcRequest } from '../types.js';
 import { isRpcRequest } from '../utility.js';
 import { WebSocketWrapper, WrapableWebSocket, wrapWebSocket } from '../WebSocketWrapper.js';
-import { JsonSerializable } from '@xxxaz/stream-api-json';
+import { type JsonSerializable } from '@xxxaz/stream-api-json';
 
 export class JsonRpcWebSocketReceiver<Ctx> extends JsonRpcServer<Ctx> {
     async #onMessage(context: Ctx, socket: WebSocketWrapper, data: JsonSerializable) {

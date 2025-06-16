@@ -1,5 +1,5 @@
 import { type WebSocket as NodeWebSocket, type RawData } from 'ws';
-import { JsonSerializable } from "@xxxaz/stream-api-json";
+import { type JsonSerializable } from "@xxxaz/stream-api-json";
 
 export type WrapableWebSocket = WebSocket|NodeWebSocket;
 export function wrapWebSocket(socket: WrapableWebSocket, listener: SocketListener, closedListener: ScokcetClosedListener) {
