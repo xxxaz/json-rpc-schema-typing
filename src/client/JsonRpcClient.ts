@@ -249,9 +249,12 @@ function triggerFunction<Sch extends JsonRpcMethodSchema<any, any>>(schema: Sch,
 
     const fn = async (...params: any[]) => {
         validateParams(params);
-        const { result } = await stack.stack(true, methodPath, params) as { result: any };
-        validator.validateReturn(result);
-        return result;
+        const response = await stack.stack(true, methodPath, params) ?? {} as JsonRpcResponse<any>;
+        if ('error' in response) {
+            throw JsonRpcException.deserialize(response.error);
+        }
+        validator.validateReturn(response.result);
+        return response.result;
     };
     fn.notice = (...params: any[]) => {
         validateParams(params);
