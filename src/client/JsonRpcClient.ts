@@ -160,10 +160,10 @@ export class JsonRpcClient<Schema extends JsonRpcSchema> {
 }
 
 abstract class RequestsStack {
-    abstract stack(id: boolean, method: string[], params: any[]): Promise<JsonRpcResponse<any>|void>;
+    abstract stack(id: boolean, method: string[], params: any): Promise<JsonRpcResponse<any>|void>;
 
     constructor(readonly client: JsonRpcClient<any>) {}
-    protected async buildRequest(requireId: boolean, methodPath: string[], params: any[]) : Promise<JsonRpcRequest> {
+    protected async buildRequest(requireId: boolean, methodPath: string[], params: any) : Promise<JsonRpcRequest> {
         const jsonrpc = '2.0' as const;
         const method = methodPath.join('.');
         const id = requireId ? await this.client[$generateId]() : null;
@@ -172,7 +172,7 @@ abstract class RequestsStack {
 }
 
 class NoStack extends RequestsStack {
-    async stack(requireId: boolean, methodPath: string[], params: any[]) {
+    async stack(requireId: boolean, methodPath: string[], params: any) {
         const request = await this.buildRequest(requireId, methodPath, params);
         return this.client.postRpc(request);
     }
@@ -184,7 +184,7 @@ class BatchStack extends RequestsStack {
         return this.#requests.length;
     }
 
-    stack(requireId: boolean, methodPath: string[], params: any[]) {
+    stack(requireId: boolean, methodPath: string[], params: any) {
         const resolver =  new LazyResolvers<JsonRpcResponse<any>|void>();
         const wait
             = this.buildRequest(requireId, methodPath, params)
@@ -207,7 +207,7 @@ class LazyStack extends BatchStack {
         super(client);
     }
 
-    stack(requireId: boolean, methodPath: string[], params: any[]) {
+    stack(requireId: boolean, methodPath: string[], params: any) {
         if (!this.currentSize) {
             setTimeout(() => this.kick(), this.delayMs);
         }
@@ -239,16 +239,18 @@ function triggerFunction<Sch extends JsonRpcMethodSchema<any, any>>(schema: Sch,
     const validateParams = (params: any[]) => {
         if(schema.$params?.type === 'object') {
             if (params instanceof Array && params.length === 1) {
-                return validator.validateParams(params[0]);
+                validator.validateParams(params[0]);
+                return params[0];
             } else {
                 throw new InvalidParams('Expected params to be an object but received multiple parameters.');
             }
         }
-        return validator.validateParams(params);
+        validator.validateParams(params);
+        return params;
     };
 
     const fn = async (...params: any[]) => {
-        validateParams(params);
+        params = validateParams(params);
         const response = await stack.stack(true, methodPath, params) ?? {} as JsonRpcResponse<any>;
         if ('error' in response) {
             throw JsonRpcException.deserialize(response.error);
@@ -257,7 +259,7 @@ function triggerFunction<Sch extends JsonRpcMethodSchema<any, any>>(schema: Sch,
         return response.result;
     };
     fn.notice = (...params: any[]) => {
-        validateParams(params);
+        params = validateParams(params);
         stack.stack(false, methodPath, params);
     };
     return fn;
