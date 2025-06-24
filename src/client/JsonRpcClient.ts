@@ -185,7 +185,7 @@ class BatchStack extends RequestsStack {
     }
 
     stack(requireId: boolean, methodPath: string[], params: any) {
-        const resolver =  new LazyResolvers<JsonRpcResponse<any>|void>();
+        const resolver = new LazyResolvers<JsonRpcResponse<any>|void>();
         const wait
             = this.buildRequest(requireId, methodPath, params)
             .then((request)=> ({ request, promise: resolver }));

@@ -1,6 +1,7 @@
 #!/usr/bin/env -S node --no-warnings=ExperimentalWarning --loader=ts-node/esm
 
 import { createServer } from 'http';
+import { createServer as create2Server } from 'http2';
 import { FileSystemRouter } from '../src/router/FileSystemRouter.js';
 import { JsonRpcHttpReceiver } from '../src/server/JsonRpcHttpReceiver.js';
 import { JsonRpcWebSocketReceiver } from '../src/server/JsonRpcWebSocketReceiver.js';
@@ -22,6 +23,10 @@ writeFileSync(resolve(__dirname, 'schema.ts'), script);
 const httpRpc = new JsonRpcHttpReceiver<Ctx>(router);
 const wsRpc = new JsonRpcWebSocketReceiver<Ctx>(router);
 
+const http2Server = create2Server(async (request, response) => {
+    httpRpc.serve({}, request, response);
+});
+
 const httpServer = createServer(async (request, response) => {
     httpRpc.serve({}, request, response);
 });
@@ -37,3 +42,6 @@ wsServer.on('connection', (socket, request) => {
 });
 
 httpServer.listen(3000);
+http2Server.listen(3001, () => {
+    console.log('HTTP/2 server listening on port 3001');
+});
