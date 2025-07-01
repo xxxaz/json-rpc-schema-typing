@@ -68,7 +68,7 @@ type FitMax<N extends number, C extends void[] = FitMin<N>> = [void, ...C]['leng
 export type Min<NumLiteral extends number> = FitMin<NumLiteral> extends any[] ? FitMin<NumLiteral>['length']: never;
 export type Max<NumLiteral extends number> = FitMax<NumLiteral> extends any[] ? FitMax<NumLiteral>['length'] : never;
 
-export type IsOptional<A, T, F = never> = A|undefined extends A ? T : F;
+export type IsOptional<A, T, F = never> = A extends { oneOf: readonly [...any, false, ...any] } ? T : A|undefined extends A ? T : F;
 export type IsNever<A, T, F = never> = [A] extends [never] ? T : F;
 export type PerfectMatch<A, B, T, F = never> = [A] extends [B] ? ([B] extends [A] ? T : F) : F;
 
