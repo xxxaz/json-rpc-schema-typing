@@ -14,11 +14,14 @@ export type ExcludeOptional<T extends any[]>
     : T;
 
 export function $Tuple<T extends JSONSchema[]>(...items: T) {
+    // NOTE: Optionalを含む場合、Ajvが以下のような通知を吐きます
+    // strict mode: "items" is 2-tuple, but minItems or maxItems/additionalItems are not specified or different at path "#"
     return {
         type: 'array',
         items: items as T,
         minItems: items.lastIndexOf((i: JSONSchema) => !$Optional.is(i)) + 1 as ExcludeOptional<T>['length'],
         maxItems: items.length as Max<T['length']>,
+        additionalItems: false,
     } as const;
 }
 
