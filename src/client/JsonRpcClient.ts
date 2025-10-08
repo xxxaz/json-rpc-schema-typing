@@ -143,19 +143,19 @@ export class JsonRpcClient<Schema extends JsonRpcSchema> {
 
     #rpc?: JsonRpcCaller<Schema>;
     get rpc(): JsonRpcCaller<Schema> {
-        return this.#rpc ??= getChild(this.#schema, [], new NoStack(this));
+        return this.#rpc ??= proxyRpc(new NoStack(this), this.#schema);
     }
     
     #batch?: JsonRpcCaller<Schema>;
     get batch(): JsonRpcCaller<Schema> {
-        return this.#batch ??= getChild(this.#schema, [], new BatchStack(this));
+        return this.#batch ??= proxyRpc(new BatchStack(this), this.#schema);
     }
     kickBatch() {
         return (this.batch[$requestStack] as BatchStack).kick();
     }
 
     lazy(delayMs: number = 0): JsonRpcCaller<Schema> {
-        return getChild(this.#schema, [], new LazyStack(this, delayMs));
+        return proxyRpc(new LazyStack(this, delayMs), this.#schema);
     }
 }
 
@@ -215,26 +215,29 @@ class LazyStack extends BatchStack {
     }
 }
 
-function getChild<Sch extends JsonRpcSchema>(schema: Sch, methodPath: string[], stack: RequestsStack) : JsonRpcCaller<Sch> {
-    const cache = { [$requestStack]: stack } as Record<string, TriggerFunction<any, any>|JsonRpcCaller<any>>;
-    return new Proxy(cache as any, {
+function proxyRpc<Sch extends JsonRpcSchema>(stack: RequestsStack, schema: Sch, methodPath: string[] = []) : JsonRpcCaller<Sch> {
+    type Property = TriggerFunction<any, any>|JsonRpcCaller<any>|undefined;
+    const pickProperty = (key: string): Property => {
+        const route = schema[key];
+        if(!route) return undefined;
+        const path = [...methodPath, key];
+        if('$params' in route || '$return' in route) {
+            const fn = triggerFunction(stack, route as JsonRpcMethodSchema<any, any>, path);
+            return fn;
+        }
+        return proxyRpc(stack, route as JsonRpcSchema, path) as JsonRpcCaller<any>;
+    };
+
+    const cache = { [$requestStack]: stack } as Record<string, Property>;
+    return new Proxy(schema as any, {
         get(_, key: string) {
-            if (cache[key]) return cache[key];
-            const route = schema[key];
-            if(!route) return undefined;
-            const path = [...methodPath, key];
-            if('$params' in route || '$return' in route) {
-                const fn = triggerFunction(route as JsonRpcMethodSchema<any, any>, path, stack);
-                return cache[key] = fn;
-            }
-            const child = getChild(route as JsonRpcSchema, path, stack);
-            return cache[key] = child;
+            return cache[key] ??= pickProperty(key);
         }
     });
 }
 
 
-function triggerFunction<Sch extends JsonRpcMethodSchema<any, any>>(schema: Sch, methodPath: string[], stack: RequestsStack) : TriggerFunction<Sch['$params'], Sch['$return']> {
+function triggerFunction<Sch extends JsonRpcMethodSchema<any, any>>(stack: RequestsStack, schema: Sch, methodPath: string[]) : TriggerFunction<Sch['$params'], Sch['$return']> {
     const validator = new JsonRpcValidator(schema);
     const validateParams = (params: any[]) => {
         if(schema.$params?.type === 'object') {
