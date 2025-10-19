@@ -1,7 +1,7 @@
 #!/usr/bin/env -S node --no-warnings=ExperimentalWarning --loader=ts-node/esm
 
-import { createServer } from 'http';
-import { createServer as create2Server } from 'http2';
+import http from 'http';
+import http2 from 'http2';
 import { FileSystemRouter } from '../src/router/FileSystemRouter.js';
 import { JsonRpcHttpReceiver } from '../src/server/JsonRpcHttpReceiver.js';
 import { JsonRpcWebSocketReceiver } from '../src/server/JsonRpcWebSocketReceiver.js';
@@ -23,11 +23,11 @@ writeFileSync(resolve(__dirname, 'schema.ts'), script);
 const httpRpc = new JsonRpcHttpReceiver<Ctx>(router);
 const wsRpc = new JsonRpcWebSocketReceiver<Ctx>(router);
 
-const http2Server = create2Server(async (request, response) => {
+const http2Server = http2.createServer(async (request, response) => {
     httpRpc.serve({}, request, response);
 });
 
-const httpServer = createServer(async (request, response) => {
+const httpServer = http.createServer(async (request, response) => {
     httpRpc.serve({}, request, response);
 });
 

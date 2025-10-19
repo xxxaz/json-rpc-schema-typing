@@ -34,6 +34,15 @@ export function $Optional<T extends JSONSchema>(item: T) {
 $Optional.is = (item: JSONSchema|undefined): boolean => {
     return Boolean((item?.oneOf ?? item?.anyOf ?? []).some(i => i === false));
 };
+$Optional.unwrap = (item: JSONSchema|undefined): JSONSchema|undefined => {
+    const optionalList = item?.oneOf ?? item?.anyOf ?? null;
+    if (!optionalList) return item;
+    const list = optionalList.filter(i => i !== false);
+    if (list.length === 1) return list[0] as JSONSchema;
+    return item?.oneOf
+        ? { oneOf: list }
+        : { anyOf: list };
+};
 
 export function $And<Schemas extends JSONSchema[]>(...allOf: Schemas) {
     return {

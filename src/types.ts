@@ -25,7 +25,9 @@ export type FromSchema<T extends JSONSchema>
         : ToTsFromSchema<T>
 ) | IsOptionalSchema<T,  undefined, never>;
 
-export type JSONSchema = ToTsSchema & object;
+type SchemaObject = ToTsSchema & object;
+type SchemaTypeSymbol = Exclude<keyof SchemaObject, string|number>;
+export type JSONSchema = Omit<SchemaObject, SchemaTypeSymbol>;
 
 export type JsonRpcRequest = {
     jsonrpc: '2.0';

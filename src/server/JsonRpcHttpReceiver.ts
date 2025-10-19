@@ -1,10 +1,11 @@
-import { type IncomingMessage as Http1ServerRequest, type OutgoingHttpHeaders as OutgoingHttp1Headers, ServerResponse as Http1ServerResponse } from 'http';
-import { type Http2ServerRequest, type OutgoingHttpHeaders as OutgoingHttp2Headers, type Http2ServerResponse } from 'http2';
-type HttpServerRequest = Http1ServerRequest | Http2ServerRequest;
-type HttpServerResponse = Http1ServerResponse | Http2ServerResponse;
-type OutgoingHttpHeaders = OutgoingHttp1Headers | OutgoingHttp2Headers;
+import http from 'http';
+import http2 from 'http2';
+import stream from 'stream';
 
-import { Readable } from 'stream';
+type HttpServerRequest = http.IncomingMessage | http2.Http2ServerRequest;
+type HttpServerResponse = http.ServerResponse | http2.Http2ServerResponse;
+type OutgoingHttpHeaders = http.OutgoingHttpHeaders | http2.OutgoingHttpHeaders;
+
 import { JsonStreamingParser, ParsingJsonArray, ParsingJsonTypes, StringifyingJsonArray } from '@xxxaz/stream-api-json';
 import { JsonRpcServer } from './JsonRpcServer.js';
 import { InternalError, JsonRpcException } from '../JsonRpcException.js';
@@ -57,7 +58,7 @@ export class JsonRpcHttpReceiver<Ctx> extends JsonRpcServer<Ctx> {
                 : await JsonStreamingParser.readFrom(reqStream).root();
             const { status, stream } = await this.#invoke(context, root);
             const nodeStream = toNodeReadable(this.#convertResponse(stream));
-            const headers = response instanceof Http1ServerResponse
+            const headers = response instanceof http.ServerResponse
                 ? {
                     ...this.#headers,
                     'Transfer-Encoding': 'chunked',
@@ -106,9 +107,9 @@ export class JsonRpcHttpReceiver<Ctx> extends JsonRpcServer<Ctx> {
     }
 }
 
-export function toNodeReadable<T>(source: ReadableStream<T>) : Readable {
+export function toNodeReadable<T>(source: ReadableStream<T>) : stream.Readable {
     const reader = source.getReader();
-    return new Readable({
+    return new stream.Readable({
         async destroy(error, callback) {
             if (error) await reader.cancel(error);
             callback(error);
