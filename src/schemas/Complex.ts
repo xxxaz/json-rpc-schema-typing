@@ -26,22 +26,28 @@ export function $Expand<Src extends JSONSchema, Ex extends Partial<JSONSchema>>(
     } as const;
 }
 
+type Optional<T> = { oneOf: (T|false)[] } | { anyOf: (T|false)[] };
 export function $Optional<T extends JSONSchema>(item: T) {
     return {
         oneOf: [item, false]
     } as const;
 }
-$Optional.is = (item: JSONSchema|undefined): boolean => {
-    return Boolean((item?.oneOf ?? item?.anyOf ?? []).some(i => i === false));
+
+$Optional.is = (item: unknown): item is Optional<any> => {
+    const lits = (item as any)?.oneOf ?? (item as any)?.anyOf ?? null;
+    if (!lits) return false;
+    return (lits.some((i: any) => i === false));
 };
-$Optional.unwrap = (item: JSONSchema|undefined): JSONSchema|undefined => {
+
+type Unwrapped<T> = T extends Optional<infer U> ? U : T;
+$Optional.unwrap = <T extends JSONSchema|undefined>(item: T): Unwrapped<T> => {
     const optionalList = item?.oneOf ?? item?.anyOf ?? null;
-    if (!optionalList) return item;
+    if (!optionalList) return item as Unwrapped<T>;
     const list = optionalList.filter(i => i !== false);
-    if (list.length === 1) return list[0] as JSONSchema;
+    if (list.length === 1) return list[0] as Unwrapped<T>;
     return item?.oneOf
-        ? { oneOf: list }
-        : { anyOf: list };
+        ? { oneOf: list } as Unwrapped<T>
+        : { anyOf: list } as Unwrapped<T>;
 };
 
 export function $And<Schemas extends JSONSchema[]>(...allOf: Schemas) {

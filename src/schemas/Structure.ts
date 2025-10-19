@@ -19,7 +19,7 @@ export function $Tuple<T extends readonly JSONSchema[]>(...items: T) {
     const optionalNumber = [...items].reverse().findIndex((i: JSONSchema) => $Optional.is(i)) + 1;
     return {
         type: 'array',
-        items: items.map(item => $Optional.unwrap(item)!),
+        items: items.map(item => $Optional.unwrap(item)!) as any as T,
         minItems: items.length - optionalNumber as ExcludeOptional<T>['length'],
         maxItems: items.length as Max<T['length']>,
         additionalItems: false,
