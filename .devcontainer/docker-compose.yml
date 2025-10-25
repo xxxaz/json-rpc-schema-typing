@@ -1,0 +1,33 @@
+name: devcontainer-json-rpc-schema-typing
+services:
+    devcontainer:
+        build:
+            context: .
+            dockerfile: dev.Dockerfile
+        privileged: true
+        environment:
+            TZ: Asia/Tokyo
+        volumes:
+            - npm-cache:/root/.npm:delegated
+            - node-modules:/app/node_modules:delegated
+            - /var/run/docker.sock:/var/run/docker.sock
+            - ~/.docker:/root/.docker:cached
+            - ~/.cache/docker:/root/.cache/docker:cached
+            - ~/.config/gcloud:/root/.config/gcloud:cached
+            - ../:/app:consistent
+        user: root
+        working_dir: /app
+
+    claude:
+        build:
+            context: .
+            dockerfile: claude.Dockerfile
+        volumes:
+            - ../:/app:consistent
+            - npm-cache:/root/.npm:delegated
+            - node-modules:/app/node_modules:delegated
+        working_dir: /app
+
+volumes:
+    npm-cache:
+    node-modules:
