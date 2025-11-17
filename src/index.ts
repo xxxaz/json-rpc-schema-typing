@@ -1,6 +1,7 @@
 
 export * from './JsonRpcException.js';
 export * from './JsonRpcMethod.js';
+export * from './JsonSchemaValidator.js';
 
 export * from './types.js';
 
