@@ -92,17 +92,17 @@ export class JsonSchemaValidator {
     async validateAsync(data: unknown): Promise<ValidationResult> {
         const NodeWorker = await getNodeWorkerThreads();
         if (NodeWorker) {
-            return NodeWorkerValidation(NodeWorker, this, data);
+            return NodeWorkerValidation(NodeWorker, this.schema, data);
         }
         if (isBrowser || isWebWorker) {
-            return WebWorkerValidation(Worker, this, data);
+            return WebWorkerValidation(Worker, this.schema, data);
         }
         // Worker が使えない環境では同期処理を行う
         return this.validate(data);
     }
 }
 
-async function NodeWorkerValidation(NodeWorker: NodeWorkerThreads, schema: JsonSchemaValidator, data: unknown): Promise<ValidationResult> {
+async function NodeWorkerValidation(NodeWorker: NodeWorkerThreads, schema: JSONSchema, data: unknown): Promise<ValidationResult> {
     const { Worker } = NodeWorker;
     const worker = new Worker(currentFile, {
         workerData: { [methodName]: { schema, data } },
@@ -117,7 +117,7 @@ async function NodeWorkerValidation(NodeWorker: NodeWorkerThreads, schema: JsonS
 
 async function kickValidateInNodeWorker(): Promise<void> {
     const { workerData, parentPort } = (await getNodeWorkerThreads()) ?? {};
-    const { schema, data } = workerData?.SchemaValidator ?? {};
+    const { schema, data } = workerData?.[methodName] ?? {};
     if (!parentPort || !schema || !data) return;
     try {
         const validated = new JsonSchemaValidator(schema).validate(data);
@@ -129,7 +129,7 @@ async function kickValidateInNodeWorker(): Promise<void> {
     }
 }
 
-async function WebWorkerValidation(WebWorker: typeof Worker, schema: JsonSchemaValidator, data: unknown): Promise<ValidationResult> {
+async function WebWorkerValidation(WebWorker: typeof Worker, schema: JSONSchema, data: unknown): Promise<ValidationResult> {
     const script = `import '${currentFile}';`;
     const objectUrl = URL.createObjectURL(new Blob([script], { type: 'application/javascript' }));
     const worker = new WebWorker(objectUrl);

@@ -67,3 +67,26 @@ export function $Xor<Schemas extends JSONSchema[]>(...oneOf: Schemas) {
         oneOf
     } as const;
 }
+
+export function $Omit<
+    T extends JSONSchema & { type: 'object' },
+    K extends keyof T['properties'] & string,
+>(schema: T, keys: readonly K[]) {
+    const properties = Object.fromEntries(
+        Object.entries(schema.properties ?? {}).filter(
+            ([key]) => !keys.includes(key as K)
+        )
+    );
+    const required = (schema.required ?? []).filter(
+        (k) => !keys.includes(k as K)
+    );
+    return {
+        type: 'object',
+        properties: properties as Omit<T['properties'], K>,
+        required: required as T['required'] extends (infer R)[]
+            ? [Exclude<R, K>]
+            : never,
+        additionalProperties:
+            schema.additionalProperties as T['additionalProperties'],
+    } as const;
+}
