@@ -1,7 +1,6 @@
 import { Ajv, Options as AjvOptions, ValidateFunction, ErrorObject } from 'ajv';
 import { type JSONSchema } from 'json-schema-to-ts';
-
-type NodeWorkerThreads = typeof import('worker_threads');
+import type { Worker as NodeWorker } from 'worker_threads';
 
 const isBrowser =
     typeof window !== 'undefined' && typeof window.document !== 'undefined';
@@ -14,13 +13,6 @@ const isNode =
 
 // @ts-ignore
 const currentFile = globalThis.__filename || (typeof import.meta !== 'undefined' ? import.meta.filename : '.');
-
-
-// Node で dynamic import（ブラウザでは実行されない）
-export async function getNodeWorkerThreads(): Promise<NodeWorkerThreads | null> {
-    if (!isNode) return null;
-    return import('worker_threads');
-}
 
 type SerializedError = {
     propertyName?: string;
@@ -63,7 +55,7 @@ const methodName = '@xxxaz/json-schema-typing.JsonSchemaValidator.validate';
 
 export class JsonSchemaValidator {
     constructor(
-        readonly schema: JSONSchema,
+        readonly schema: JSONSchema & object,
         ajvOptions?: AjvOptions
     ) {
         this.#ajv = new Ajv(ajvOptions);
@@ -90,80 +82,94 @@ export class JsonSchemaValidator {
     }
 
     async validateAsync(data: unknown): Promise<ValidationResult> {
-        const NodeWorker = await getNodeWorkerThreads();
-        if (NodeWorker) {
-            return NodeWorkerValidation(NodeWorker, this.schema, data);
+        const worker = await getWorker(this.schema);
+        if (!worker) {
+            // Worker が使えない環境では同期処理を行う
+            return this.validate(data);
         }
-        if (isBrowser || isWebWorker) {
-            return WebWorkerValidation(Worker, this.schema, data);
-        }
-        // Worker が使えない環境では同期処理を行う
-        return this.validate(data);
+        const id = crypto.randomUUID();
+        const listener = Promise.withResolvers<ValidationResult>();
+        listeners[id] = listener;
+        worker.postMessage({ method: methodName, schema: this.schema, data, id });
+        return listener.promise;
     }
 }
 
-async function NodeWorkerValidation(NodeWorker: NodeWorkerThreads, schema: JSONSchema, data: unknown): Promise<ValidationResult> {
-    const { Worker } = NodeWorker;
-    const worker = new Worker(currentFile, {
-        workerData: { [methodName]: { schema, data } },
-    });
-    return new Promise((resolve, reject) => {
-        worker
-            .on('message', resolve)
-            .on('messageerror', reject)
-            .on('error', reject);
-    });
-}
+type WorkerType = NodeWorker | Worker;
+let workers: WeakMap<object, WorkerType> = new WeakMap();
+let listeners: Record<string, PromiseWithResolvers<ValidationResult>> = {};
+async function getWorker(key: object): Promise<WorkerType | null> {
+    if (workers.has(key)) return workers.get(key) ?? null;
 
-async function kickValidateInNodeWorker(): Promise<void> {
-    const { workerData, parentPort } = (await getNodeWorkerThreads()) ?? {};
-    const { schema, data } = workerData?.[methodName] ?? {};
-    if (!parentPort || !schema || !data) return;
-    try {
-        const validated = new JsonSchemaValidator(schema).validate(data);
-        parentPort.postMessage(validated);
-    } catch (err) {
-        parentPort.emit('messageerror', err);
-    } finally {
-        parentPort.close();
+    let worker: WorkerType;
+    if (isNode) {
+        const NodeWorkerThreads = await import('worker_threads');
+        worker = new NodeWorkerThreads.Worker(currentFile);
+        worker.on('message', (data) => onMessage(data));
+        worker.on('error', (err) => onError(err));
+        worker.on('messageerror', (data) => onError(data));
+    } else if (isBrowser || isWebWorker) {
+        worker = new Worker(currentFile);
+        worker.addEventListener('message', (ev) => onMessage(ev.data));
+        worker.addEventListener('error', (ev) => onError(ev.error));
+        worker.addEventListener('messageerror', (ev) => onFaild(ev.data.id));
+    } else {
+        return null;
+    }
+    workers.set(key, worker);
+    return worker;
+}
+function onMessage(data: {id: string, result?: ValidationResult, error?: any}) {
+    const listener = listeners[data.id];
+    if (listener) {
+        if (data.error) {
+            listener.reject(data.error);
+        } else {
+            listener.resolve(data.result!);
+        }
+        delete listeners[data.id];
+    }
+}
+function onError(err: Error) {
+    Object.values(listeners).forEach(({ reject }) => reject(err));
+    listeners = {};
+}
+function onFaild(data: { id: string }) {
+    const listener = listeners[data.id];
+    if (listener) {
+        listener.reject(new Error(`Worker validation failed: ${data.id}`));
+        delete listeners[data.id];
     }
 }
 
-async function WebWorkerValidation(WebWorker: typeof Worker, schema: JSONSchema, data: unknown): Promise<ValidationResult> {
-    const script = `import '${currentFile}';`;
-    const objectUrl = URL.createObjectURL(new Blob([script], { type: 'application/javascript' }));
-    const worker = new WebWorker(objectUrl);
-    return new Promise<ValidationResult>((resolve, reject) => {
-        worker.addEventListener('message', (ev) => resolve(ev.data));
-        worker.addEventListener('error', reject);
-        worker.addEventListener('messageerror', reject);
-        worker.postMessage({ [methodName]: { schema, data } });
-    }).finally(() => {
-        worker.terminate();
-        URL.revokeObjectURL(objectUrl);
-    });
-}
-
-function kickValidateInWebWorker(): void {
-    if (!isWebWorker) return;
-    const worker = self;
-    worker.addEventListener('message', (ev) => {
-        const { schema, data } = (ev.data as any)?.[methodName] ?? {};
-        if (!schema || !data) return;
+(async function kickValidateInWorker(): Promise<void> {
+    type ReceiveMesg = { method: string; id: string; schema: JSONSchema & object; data: unknown };
+    const onMessage = (msg: ReceiveMesg, callback: (result: {}) => void) => {
+        const { id, schema, data } = msg;
         try {
-            const validated = new JsonSchemaValidator(schema).validate(data);
-            worker.postMessage(validated);
-        } catch (err) {
-            worker.postMessage({ error: err });
-        } finally {
-            worker.close();
+            const result = new JsonSchemaValidator(schema).validate(data);
+            callback({ id, result });
+        } catch (error) {
+            callback({ id, error });
         }
-    });
-}
-
-(() => {
-    kickValidateInWebWorker();
-    kickValidateInNodeWorker();
+    };
+    if (isNode) {
+        const NodeWorkerThreads = await import('worker_threads');
+        const { parentPort } = NodeWorkerThreads;
+        if (!parentPort) return;
+        parentPort.on('message', (msg: ReceiveMesg) => {
+            if (msg.method !== methodName) return;
+            onMessage(msg, (result) => parentPort.postMessage(result));
+        });
+    } else {
+        self.addEventListener('message', (ev) => {
+            const msg = ev.data as ReceiveMesg;
+            if (msg.method !== methodName) return;
+            onMessage(msg, (result) => {
+                self.postMessage(result);
+            });
+        });
+    }
 })();
 
 

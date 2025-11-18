@@ -18,9 +18,9 @@ export class JsonRpcValidator<
     #paramValidator:JsonSchemaValidator | null;
     #returnValidator:JsonSchemaValidator | null;
 
-    async validateParams(params: unknown): Promise<Valid<Sch['$params']>> {
+    validateParams(params: unknown): Valid<Sch['$params']> {
         if(!this.#paramValidator) return params as Valid<Sch['$params']>;
-        const validated = await this.#paramValidator.validateAsync(params);
+        const validated = this.#paramValidator.validate(params);
         if(!validated.valid && validated.errors.length > 0) {
             const message = validated.errors.map(({ instancePath, message }) => `params${instancePath ?? ''}: ${message}`).join('\n');
             throw new InvalidParams(message, validated.errors);
@@ -28,9 +28,9 @@ export class JsonRpcValidator<
         return params as Valid<Sch['$params']>;
     }
 
-    async validateReturn(result: unknown): Promise<Valid<Sch['$return']>> {
+    validateReturn(result: unknown): Valid<Sch['$return']> {
         if(!this.#returnValidator) return result as Valid<Sch['$return']>;
-        const validated = await this.#returnValidator.validateAsync(result);
+        const validated = this.#returnValidator.validate(result);
         if (!validated.valid && validated.errors.length > 0) {
             const message = validated.errors.map(({ instancePath, message }) => `return.${instancePath ?? ''}: ${message}`).join('\n');
             throw new InvalidReturn(message, validated.errors);
