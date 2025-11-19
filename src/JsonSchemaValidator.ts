@@ -11,8 +11,24 @@ const isWebWorker =
 const isNode =
     typeof process !== 'undefined' && !!(process as any).versions?.node;
 
-// @ts-ignore
-const currentFile = globalThis.__filename || (typeof import.meta !== 'undefined' ? import.meta.filename : '.');
+function currentFile() {
+    if (globalThis.__filename) {
+        return globalThis.__filename;
+    }
+    try {
+        return Function("return import.meta.filename")();
+    } catch (err) {
+        if (!(err instanceof SyntaxError)) throw err;
+    }
+
+    const script = globalThis.document?.currentScript as HTMLScriptElement | undefined;
+    if (script?.src) {
+        return script?.src;
+    }
+
+    return null;
+}
+
 
 type SerializedError = {
     propertyName?: string;
@@ -101,15 +117,18 @@ let listeners: Record<string, PromiseWithResolvers<ValidationResult>> = {};
 async function getWorker(key: object): Promise<WorkerType | null> {
     if (workers.has(key)) return workers.get(key) ?? null;
 
+    const src = currentFile();
+    if (!src) return null;
+
     let worker: WorkerType;
     if (isNode) {
         const NodeWorkerThreads = await import('worker_threads');
-        worker = new NodeWorkerThreads.Worker(currentFile);
+        worker = new NodeWorkerThreads.Worker(src);
         worker.on('message', (data) => onMessage(data));
         worker.on('error', (err) => onError(err));
         worker.on('messageerror', (data) => onError(data));
     } else if (isBrowser || isWebWorker) {
-        worker = new Worker(currentFile);
+        worker = new Worker(src);
         worker.addEventListener('message', (ev) => onMessage(ev.data));
         worker.addEventListener('error', (ev) => onError(ev.error));
         worker.addEventListener('messageerror', (ev) => onFaild(ev.data.id));
@@ -161,7 +180,8 @@ function onFaild(data: { id: string }) {
             if (msg.method !== methodName) return;
             onMessage(msg, (result) => parentPort.postMessage(result));
         });
-    } else {
+    } 
+    if (isWebWorker) {
         self.addEventListener('message', (ev) => {
             const msg = ev.data as ReceiveMesg;
             if (msg.method !== methodName) return;
