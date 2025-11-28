@@ -1,5 +1,5 @@
 import { type Primitive } from "@xxxaz/stream-api-json";
-import { JSONSchema } from "../types.js";
+import { JSONSchema, RequiredKeys } from "../types.js";
 
 export function $Enum<T extends (null|boolean|number|string)[]>(...elements: T) {
     return {
@@ -76,16 +76,43 @@ export function $Omit<
         Object.entries(schema.properties ?? {}).filter(
             ([key]) => !keys.includes(key as K)
         )
-    );
+    ) as Omit<T['properties'], K>;
     const required = (schema.required ?? []).filter(
         (k) => !keys.includes(k as K)
-    );
+    ) as T['required'] extends (infer R)[]
+        ? [Exclude<R, K>]
+        : never;
     return {
         type: 'object',
-        properties: properties as Omit<T['properties'], K>,
-        required: required as T['required'] extends (infer R)[]
-            ? [Exclude<R, K>]
-            : never,
+        properties,
+        required,
+        additionalProperties:
+            schema.additionalProperties as T['additionalProperties'],
+    } as const;
+}
+
+export function $Override<
+    T extends JSONSchema & { type: 'object' },
+    O extends Record<string, JSONSchema>,
+>(schema: T, override: O) {
+    const properties = {
+        ...schema.properties,
+        ...override,
+    } as Omit<T['properties'], keyof O> & O;
+
+    const uniq = Array.from(new Set([
+        ...(schema.required ?? []),
+        ...Object.keys(override),
+    ]));
+    const required = uniq.filter(
+        (k) => !(k in override && $Optional.is(override[k]))
+    ) as T['required'] extends (infer R)[]
+        ? [Exclude<R, keyof O> | RequiredKeys<O>]
+        : [RequiredKeys<O>];
+    return {
+        type: 'object',
+        properties,
+        required,
         additionalProperties:
             schema.additionalProperties as T['additionalProperties'],
     } as const;

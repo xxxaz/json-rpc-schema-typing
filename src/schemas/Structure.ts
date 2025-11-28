@@ -26,10 +26,7 @@ export function $Tuple<T extends readonly JSONSchema[]>(...items: T) {
     } as const;
 }
 
-type ObjectDefine = {
-    [key: string]: JSONSchema;
-};
-export function $Object<T extends ObjectDefine>(properties: T) {
+export function $Object<T extends Record<string, JSONSchema>>(properties: T) {
     const required = Object.entries(properties)
         .filter(([key, value]) => !$Optional.is(value))
         .map(([key]) => key) as [RequiredKeys<T>];
