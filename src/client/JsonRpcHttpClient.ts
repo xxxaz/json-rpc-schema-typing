@@ -6,6 +6,8 @@ import { emptyStrem, readStreamAll } from "../utility.js";
 
 type HeadersGenerator = (body: Blob) => Promise<HeadersInit>|HeadersInit;
 
+type Fetcher = (req: Request) => Promise<Response>;
+
 type JsonRpcHttpClientOptions<Sch extends JsonRpcSchema> = {
     schema: Sch;
     generateId?: GenereteId;
@@ -14,6 +16,7 @@ type JsonRpcHttpClientOptions<Sch extends JsonRpcSchema> = {
     requestConverter?: (request: ReadableStream<string>) => ReadableStream<Uint8Array>;
     responseConverter?: (response: ReadableStream<Uint8Array>, contentType: string|null) => ReadableStream<string>;
     headers?: HeadersGenerator|HeadersInit;
+    fetcher?: Fetcher;
     init?: Pick<RequestInit, 'credentials'|'keepalive'|'mode'|'priority'|'redirect'|'referrer'|'referrerPolicy'>;
 };
 
@@ -46,6 +49,7 @@ export class JsonRpcHttpClient<Sch extends JsonRpcSchema> extends JsonRpcClient<
                 headers,
             };
         };
+        this.#fetcher = options.fetcher ?? fetch;
     }
 
     readonly postUrl: string|URL;
@@ -53,12 +57,14 @@ export class JsonRpcHttpClient<Sch extends JsonRpcSchema> extends JsonRpcClient<
     readonly #requestConverter?: (request: ReadableStream<string>) => ReadableStream<any>;
     readonly #responseConverter?: (response: ReadableStream<any>, contentType: string|null) => ReadableStream<string>;
     readonly #initGenerator: (body: Blob) => Promise<RequestInit>;
+    readonly #fetcher: Fetcher;
 
     async #post(url: string|URL, request: ReadableStream<string>) {
         if (this.#requestConverter) request = this.#requestConverter(request);
         const body = await readStreamAll(request);
         const init = await this.#initGenerator(body);
-        const response = await fetch(url, { ...init, body });
+        const requestObj = new Request(url, { ...init, body });
+        const response = await this.#fetcher(requestObj);
         if (!response.ok) {
             const message = `${response.status} ${response.statusText}`;
             const headers = Object.fromEntries(response.headers.entries());
