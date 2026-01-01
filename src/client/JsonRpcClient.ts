@@ -163,7 +163,7 @@ abstract class RequestsStack {
     abstract stack(id: boolean, method: string[], params: any): Promise<JsonRpcResponse<any>|void>;
 
     constructor(readonly client: JsonRpcClient<any>) {}
-    protected async buildRequest(requireId: boolean, methodPath: string[], params: any) : Promise<JsonRpcRequest> {
+    async buildRequest(requireId: boolean, methodPath: string[], params: any) : Promise<JsonRpcRequest> {
         const jsonrpc = '2.0' as const;
         const method = methodPath.join('.');
         const id = requireId ? await this.client[$generateId]() : null;
