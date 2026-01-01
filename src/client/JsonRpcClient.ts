@@ -18,9 +18,9 @@ type JsonRpcClientOptions<Sch extends JsonRpcSchema> = {
     generateId?: GenereteId;
 };
 
-const $generateId: unique symbol = Symbol('GenereteId');
-const $requestStack: unique symbol = Symbol('RequestsStack');
-const $methodPath: unique symbol = Symbol('MethodPath');
+export const $generateId: unique symbol = Symbol('GenereteId');
+export const $requestStack: unique symbol = Symbol('RequestsStack');
+export const $methodPath: unique symbol = Symbol('MethodPath');
 
 type TriggerFunction<ParamSch extends ParameterSchema, RtnSch> = {
     (...args: Params<ParamSch>): Promise<Return<RtnSch>>;
