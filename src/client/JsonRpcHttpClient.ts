@@ -49,7 +49,15 @@ export class JsonRpcHttpClient<Sch extends JsonRpcSchema> extends JsonRpcClient<
                 headers,
             };
         };
-        this.#fetcher = options.fetcher ?? fetch;
+
+        const fetcher: Fetcher|null
+            = options.fetcher
+            || ('fetch' in globalThis && globalThis.fetch.bind(globalThis))
+            || null;
+        if (!fetcher) {
+            throw new Error('Fetch API is not available.');
+        }
+        this.#fetcher = fetcher;
     }
 
     readonly postUrl: string|URL;
