@@ -6,13 +6,19 @@ type RouteCache<Ctx> = {
     [path: string]: FileSystemRouter<Ctx>|JsonRpcMethodDefinition<Ctx, any, any>|null;
 };
 
+type FileSystemRouterOptions = {
+    pathFilter?: (RegExp|((path: string) => boolean));
+};
+
 export class FileSystemRouter<Ctx> extends JsonRpcRouter<Ctx> {
-    constructor(private readonly rootDir: string) {
+    constructor(private readonly rootDir: string, options: FileSystemRouterOptions = {}) {
         super();
         if (!existsSync(rootDir)) throw new Error(`Not found: ${rootDir}`);
         const stat = lstatSync(rootDir);
         if (!stat.isDirectory()) throw new Error(`Not a directory: ${rootDir}`);
+        this.#pathFilter = options.pathFilter;
     }
+    readonly #pathFilter?: (RegExp|((path: string) => boolean));
 
     // instanceof JsonRpcMethodDefinition だと参照先モジュールが複数存在した際に一致しなくなる
     static #isDefinition(obj: any): obj is JsonRpcMethodDefinition<any, any, any> {
@@ -37,6 +43,12 @@ export class FileSystemRouter<Ctx> extends JsonRpcRouter<Ctx> {
                 ? `${path}.ts`
                 : null;
         if (!filePath) return this.#cache[methodPath] = null;
+        if (this.#pathFilter) {
+            const pass = this.#pathFilter instanceof RegExp
+                ? this.#pathFilter.test(filePath)
+                : this.#pathFilter(filePath);
+            if (!pass) return this.#cache[methodPath] = null;
+        }
         
         try {
             const module = await import(filePath);
