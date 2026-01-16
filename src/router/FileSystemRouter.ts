@@ -10,15 +10,23 @@ type FileSystemRouterOptions = {
     pathFilter?: (RegExp|((path: string) => boolean));
 };
 
+function parsePathFilter(filter?: RegExp|((path: string) => boolean)): (path: string) => boolean {
+    if (!filter) return () => true;
+    if (filter instanceof RegExp) {
+        return (path: string) => filter.test(path);
+    }
+    return filter;
+}
+
 export class FileSystemRouter<Ctx> extends JsonRpcRouter<Ctx> {
     constructor(private readonly rootDir: string, options: FileSystemRouterOptions = {}) {
         super();
         if (!existsSync(rootDir)) throw new Error(`Not found: ${rootDir}`);
         const stat = lstatSync(rootDir);
         if (!stat.isDirectory()) throw new Error(`Not a directory: ${rootDir}`);
-        this.#pathFilter = options.pathFilter;
+        this.#pathFilter = parsePathFilter(options.pathFilter);
     }
-    readonly #pathFilter?: (RegExp|((path: string) => boolean));
+    readonly #pathFilter: (path: string) => boolean;
 
     // instanceof JsonRpcMethodDefinition だと参照先モジュールが複数存在した際に一致しなくなる
     static #isDefinition(obj: any): obj is JsonRpcMethodDefinition<any, any, any> {
@@ -42,12 +50,8 @@ export class FileSystemRouter<Ctx> extends JsonRpcRouter<Ctx> {
             : existsSync(`${path}.ts`)
                 ? `${path}.ts`
                 : null;
-        if (!filePath) return this.#cache[methodPath] = null;
-        if (this.#pathFilter) {
-            const pass = this.#pathFilter instanceof RegExp
-                ? this.#pathFilter.test(filePath)
-                : this.#pathFilter(filePath);
-            if (!pass) return this.#cache[methodPath] = null;
+        if (!filePath || !this.#pathFilter(filePath)) {
+            return this.#cache[methodPath] = null;
         }
         
         try {
@@ -84,6 +88,7 @@ export class FileSystemRouter<Ctx> extends JsonRpcRouter<Ctx> {
 
     async * enumerate(): AsyncIterable<string> {
         for(const name of readdirSync(this.rootDir)) {
+            if (!this.#pathFilter(name)) continue;
             yield name.replace(/\.(js|ts)$/, '');
         }
     }
