@@ -6,9 +6,9 @@ type HttpServerRequest = http.IncomingMessage | http2.Http2ServerRequest;
 type HttpServerResponse = http.ServerResponse | http2.Http2ServerResponse;
 type OutgoingHttpHeaders = http.OutgoingHttpHeaders | http2.OutgoingHttpHeaders;
 
-import { JsonStreamingParser, ParsingJsonArray, ParsingJsonTypes, StringifyingJsonArray } from '@xxxaz/stream-api-json';
+import { JsonStreamingParser, ParsingJson, ParsingJsonArray, ParsingJsonTypes, StringifyingJsonArray } from '@xxxaz/stream-api-json';
 import { JsonRpcServer } from './JsonRpcServer.js';
-import { InternalError, JsonRpcException } from '../JsonRpcException.js';
+import { InternalError, InvalidRequest, JsonRpcException } from '../JsonRpcException.js';
 import { JsonRpcRouter } from '../router/JsonRpcRouter.js';
 import { isRpcRequest, stringifyStream, readStreamAll } from '../utility.js';
 import { JsonRpcRequest } from '../types.js';
@@ -68,6 +68,7 @@ export class JsonRpcHttpReceiver<Ctx> extends JsonRpcServer<Ctx> {
             nodeStream.pipe(response);
     
         } catch (err: unknown) {
+            console.error(err);
             response.writeHead(500);
             response.end(JSON.stringify({ jsonrpc: "2.0", error: new InternalError(String(err)).serialize() }));
         }
@@ -94,10 +95,15 @@ export class JsonRpcHttpReceiver<Ctx> extends JsonRpcServer<Ctx> {
                 const stream = new StringifyingJsonArray(result);
                 return { status: 200, stream };
             }
-            const result = await this.call(context, await req.all());
-            return { status: 200, stream: stringifyStream(result) };
+            if (req instanceof ParsingJson) {
+                const result = await this.call(context, await req.all());
+                return { status: 200, stream: stringifyStream(result) };
+            }
+
+            throw new InvalidRequest('Invalid Request', { request: (req as any) });
         } catch (err: unknown) {
             if(err instanceof JsonRpcException) {
+                console.error(err);
                 const status = err instanceof InternalError ? 500 : 400;
                 const result = { jsonrpc: "2.0", error: err.serialize() };
                 return { status, stream: stringifyStream(result) };
