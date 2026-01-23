@@ -24,8 +24,10 @@ export class FileSystemRouter<Ctx> extends JsonRpcRouter<Ctx> {
         if (!existsSync(rootDir)) throw new Error(`Not found: ${rootDir}`);
         const stat = lstatSync(rootDir);
         if (!stat.isDirectory()) throw new Error(`Not a directory: ${rootDir}`);
+        this.#options = options;
         this.#pathFilter = parsePathFilter(options.pathFilter);
     }
+    readonly #options: FileSystemRouterOptions;
     readonly #pathFilter: (path: string) => boolean;
 
     // instanceof JsonRpcMethodDefinition だと参照先モジュールが複数存在した際に一致しなくなる
@@ -40,7 +42,7 @@ export class FileSystemRouter<Ctx> extends JsonRpcRouter<Ctx> {
         const path = `${this.rootDir}/${methodPath}`;
         if (existsSync(path)) {
             if (lstatSync(path).isDirectory()) {
-                return this.#cache[methodPath] = new FileSystemRouter<Ctx>(path);
+                return this.#cache[methodPath] = new FileSystemRouter<Ctx>(path, this.#options);
             }
         }
 
