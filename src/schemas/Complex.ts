@@ -1,15 +1,18 @@
-import { type Primitive } from "@xxxaz/stream-api-json";
-import { JSONSchema, RequiredKeys } from "../types.js";
+import type { Primitive } from '@xxxaz/stream-api-json';
+import type { JSONSchema, RequiredKeys } from '../types.js';
 
-export function $Enum<T extends (null|boolean|number|string)[]>(...elements: T) {
+// const 型パラメータでリテラル型を保持する (routes 経由の静的型導出で enum が widening しないように)
+export function $Enum<const T extends (null | boolean | number | string)[]>(
+    ...elements: T
+) {
     return {
-        enum: elements
+        enum: elements,
     } as const;
 }
 
 export function $EnumKeys<T extends object>(obj: T) {
     return {
-        enum: Object.keys(obj) as [(keyof T)]
+        enum: Object.keys(obj) as [keyof T],
     } as const;
 }
 
@@ -17,54 +20,59 @@ export function $EnumValues<T extends { [key: string]: Primitive }>(obj: T) {
     return {
         enum: Object.values(obj) as [T[keyof T]],
     } as const;
-};
+}
 
-export function $Expand<Src extends JSONSchema, Ex extends Partial<JSONSchema>>(source: Src, expand: Ex) {
+export function $Expand<Src extends JSONSchema, Ex extends Partial<JSONSchema>>(
+    source: Src,
+    expand: Ex,
+) {
     return {
         ...source,
         ...expand,
     } as const;
 }
 
-type Optional<T> = { oneOf: (T|false)[] } | { anyOf: (T|false)[] };
+type Optional<T> = { oneOf: (T | false)[] } | { anyOf: (T | false)[] };
 export function $Optional<T extends JSONSchema>(item: T) {
     return {
-        oneOf: [item, false]
+        oneOf: [item, false],
     } as const;
 }
 
 $Optional.is = (item: unknown): item is Optional<any> => {
     const lits = (item as any)?.oneOf ?? (item as any)?.anyOf ?? null;
     if (!lits) return false;
-    return (lits.some((i: any) => i === false));
+    return lits.some((i: any) => i === false);
 };
 
 type Unwrapped<T> = T extends Optional<infer U> ? U : T;
-$Optional.unwrap = <T extends JSONSchema|undefined>(item: T): Unwrapped<T> => {
+$Optional.unwrap = <T extends JSONSchema | undefined>(
+    item: T,
+): Unwrapped<T> => {
     const optionalList = item?.oneOf ?? item?.anyOf ?? null;
     if (!optionalList) return item as Unwrapped<T>;
-    const list = optionalList.filter(i => i !== false);
+    const list = optionalList.filter((i) => i !== false);
     if (list.length === 1) return list[0] as Unwrapped<T>;
     return item?.oneOf
-        ? { oneOf: list } as Unwrapped<T>
-        : { anyOf: list } as Unwrapped<T>;
+        ? ({ oneOf: list } as Unwrapped<T>)
+        : ({ anyOf: list } as Unwrapped<T>);
 };
 
 export function $And<Schemas extends JSONSchema[]>(...allOf: Schemas) {
     return {
-        allOf
+        allOf,
     } as const;
 }
 
 export function $Or<Schemas extends JSONSchema[]>(...anyOf: Schemas) {
     return {
-        anyOf
+        anyOf,
     } as const;
 }
 
 export function $Xor<Schemas extends JSONSchema[]>(...oneOf: Schemas) {
     return {
-        oneOf
+        oneOf,
     } as const;
 }
 
@@ -74,14 +82,12 @@ export function $Omit<
 >(schema: T, keys: readonly K[]) {
     const properties = Object.fromEntries(
         Object.entries(schema.properties ?? {}).filter(
-            ([key]) => !keys.includes(key as K)
-        )
+            ([key]) => !keys.includes(key as K),
+        ),
     ) as Omit<T['properties'], K>;
     const required = (schema.required ?? []).filter(
-        (k) => !keys.includes(k as K)
-    ) as T['required'] extends (infer R)[]
-        ? [Exclude<R, K>]
-        : never;
+        (k) => !keys.includes(k as K),
+    ) as T['required'] extends (infer R)[] ? [Exclude<R, K>] : never;
     return {
         type: 'object',
         properties,
@@ -100,12 +106,11 @@ export function $Override<
         ...override,
     } as Omit<T['properties'], keyof O> & O;
 
-    const uniq = Array.from(new Set([
-        ...(schema.required ?? []),
-        ...Object.keys(override),
-    ]));
+    const uniq = Array.from(
+        new Set([...(schema.required ?? []), ...Object.keys(override)]),
+    );
     const required = uniq.filter(
-        (k) => !(k in override && $Optional.is(override[k]))
+        (k) => !(k in override && $Optional.is(override[k])),
     ) as T['required'] extends (infer R)[]
         ? [Exclude<R, keyof O> | RequiredKeys<O>]
         : [RequiredKeys<O>];
