@@ -1,9 +1,9 @@
 #!/usr/bin/env -S node --no-warnings=ExperimentalWarning --loader=ts-node/esm
 import { JsonSchemaValidator } from '../src/JsonSchemaValidator.js';
 
-(async ()=>{
+(async () => {
     const validator = new JsonSchemaValidator({
-        type: 'number'
+        type: 'number',
     });
 
     console.log('Validating 42:', validator.validate(42));

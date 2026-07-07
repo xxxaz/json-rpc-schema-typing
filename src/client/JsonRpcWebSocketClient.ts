@@ -1,12 +1,23 @@
-import { LazyResolvers } from "@xxxaz/stream-api-json/utility";
-import { type JsonSerializable } from "@xxxaz/stream-api-json";
-import { JsonRpcSchema } from "../router/JsonRpcRouter.js";
-import { GenereteId, JsonRpcClient } from "./JsonRpcClient.js";
-import { isRpcResponse, readStreamAll } from "../utility.js";
-import { JsonRpcError, JsonRpcRequest, JsonRpcResponse } from "../types.js";
-import { WebSocketWrapper, WrapableWebSocket, wrapWebSocket } from '../WebSocketWrapper.js';
+import type { JsonSerializable } from '@xxxaz/stream-api-json';
+import { LazyResolvers } from '@xxxaz/stream-api-json/utility';
+import type { JsonRpcSchema } from '../router/JsonRpcRouter.js';
+import type {
+    JsonRpcError,
+    JsonRpcRequest,
+    JsonRpcResponse,
+} from '../types.js';
+import { isRpcResponse, readStreamAll } from '../utility.js';
+import {
+    type WebSocketWrapper,
+    type WrapableWebSocket,
+    wrapWebSocket,
+} from '../WebSocketWrapper.js';
+import { type GenereteId, JsonRpcClient } from './JsonRpcClient.js';
 
-type JsonRpcWebSocketClientOptions<Sch extends JsonRpcSchema, Skt extends WrapableWebSocket> = {
+type JsonRpcWebSocketClientOptions<
+    Sch extends JsonRpcSchema,
+    Skt extends WrapableWebSocket,
+> = {
     schema: Sch;
     socket: Skt;
     generateId?: GenereteId;
@@ -17,7 +28,10 @@ type ProccessedMessage = {
     resolver: LazyResolvers<JsonRpcResponse<any>>;
 };
 
-export class JsonRpcWebSocketClient<Sch extends JsonRpcSchema, Skt extends WrapableWebSocket> extends JsonRpcClient<Sch> {
+export class JsonRpcWebSocketClient<
+    Sch extends JsonRpcSchema,
+    Skt extends WrapableWebSocket,
+> extends JsonRpcClient<Sch> {
     readonly #socket: WebSocketWrapper;
 
     constructor(options: JsonRpcWebSocketClientOptions<Sch, Skt>) {
@@ -38,7 +52,7 @@ export class JsonRpcWebSocketClient<Sch extends JsonRpcSchema, Skt extends Wrapa
                     message: 'Connection closed',
                     data: { code, reason, wasClean } as JsonSerializable,
                 });
-            }
+            },
         );
     }
 
@@ -62,21 +76,21 @@ export class JsonRpcWebSocketClient<Sch extends JsonRpcSchema, Skt extends Wrapa
                     controller.enqueue(JSON.stringify(response));
                 }
                 controller.close();
-            }
+            },
         });
     }
 
     async #batch(requests: JsonRpcRequest[]) {
         const entries = requests
-            .map(req => [ req.id!, this.#post(req)! ] as const)
-            .filter(([ id, promise ]) => promise)
+            .map((req) => [req.id!, this.#post(req)!] as const)
+            .filter(([id, promise]) => promise);
         const promises = new Map(entries);
 
         return new ReadableStream({
             async start(controller) {
                 const initialCount = promises.size;
                 controller.enqueue('[');
-                while(promises.size > 0) {
+                while (promises.size > 0) {
                     if (promises.size < initialCount) {
                         controller.enqueue(',');
                     }
@@ -86,11 +100,11 @@ export class JsonRpcWebSocketClient<Sch extends JsonRpcSchema, Skt extends Wrapa
                 }
                 controller.enqueue(']');
                 controller.close();
-            }
+            },
         });
-    };
+    }
 
-    readonly #pool = new Map<number|string, ProccessedMessage>();
+    readonly #pool = new Map<number | string, ProccessedMessage>();
     #post(request: JsonRpcRequest) {
         if (!this.available) {
             return Promise.resolve<JsonRpcResponse<any>>({
@@ -103,7 +117,7 @@ export class JsonRpcWebSocketClient<Sch extends JsonRpcSchema, Skt extends Wrapa
                 },
             });
         }
-        let resolver: LazyResolvers<JsonRpcResponse<any>>|null = null;
+        let resolver: LazyResolvers<JsonRpcResponse<any>> | null = null;
         if (request.id != null) {
             resolver = new LazyResolvers<JsonRpcResponse<any>>();
             this.#pool.set(request.id, { request, resolver });
@@ -123,7 +137,7 @@ export class JsonRpcWebSocketClient<Sch extends JsonRpcSchema, Skt extends Wrapa
         }
         const pooled = this.#pool.get(data.id);
         if (!pooled) {
-            console.warn('Orphan rpc response.', data)
+            console.warn('Orphan rpc response.', data);
             return;
         }
         pooled.resolver.resolve(data);
@@ -131,7 +145,10 @@ export class JsonRpcWebSocketClient<Sch extends JsonRpcSchema, Skt extends Wrapa
     }
 
     rejectAll(reason: JsonRpcError) {
-        for (const { request: { id }, resolver } of this.#pool.values()) {
+        for (const {
+            request: { id },
+            resolver,
+        } of this.#pool.values()) {
             resolver.resolve({
                 jsonrpc: '2.0',
                 id: id!,

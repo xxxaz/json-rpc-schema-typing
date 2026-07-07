@@ -1,5 +1,10 @@
-import { Ajv, Options as AjvOptions, ValidateFunction, ErrorObject } from 'ajv';
-import { type JSONSchema } from 'json-schema-to-ts';
+import {
+    Ajv,
+    type Options as AjvOptions,
+    type ErrorObject,
+    type ValidateFunction,
+} from 'ajv';
+import type { JSONSchema } from 'json-schema-to-ts';
 import type { Worker as NodeWorker } from 'worker_threads';
 
 const isBrowser =
@@ -16,19 +21,20 @@ function currentFile() {
         return globalThis.__filename;
     }
     try {
-        return Function("return import.meta.filename")();
+        return Function('return import.meta.filename')();
     } catch (err) {
         if (!(err instanceof SyntaxError)) throw err;
     }
 
-    const script = globalThis.document?.currentScript as HTMLScriptElement | undefined;
+    const script = globalThis.document?.currentScript as
+        | HTMLScriptElement
+        | undefined;
     if (script?.src) {
         return script?.src;
     }
 
     return null;
 }
-
 
 type SerializedError = {
     propertyName?: string;
@@ -39,25 +45,34 @@ type SerializedError = {
     schemaPath?: string;
 };
 
-function * serializeErrors(error?: ErrorObject[]|null) : Generator<SerializedError> {
-    if(!error) return;
-    for(const { propertyName, message, schemaPath, data, keyword, instancePath, params } of error) {
+function* serializeErrors(
+    error?: ErrorObject[] | null,
+): Generator<SerializedError> {
+    if (!error) return;
+    for (const {
+        propertyName,
+        message,
+        schemaPath,
+        data,
+        keyword,
+        instancePath,
+        params,
+    } of error) {
         const err = {} as SerializedError;
-        if(propertyName) err.propertyName = propertyName;
-        if(message) err.message = message;
-        if(data) err.data = data;
-        if(keyword) err.keyword = keyword;
-        if(instancePath) err.instancePath = instancePath;
-        if(schemaPath) err.schemaPath = schemaPath;
+        if (propertyName) err.propertyName = propertyName;
+        if (message) err.message = message;
+        if (data) err.data = data;
+        if (keyword) err.keyword = keyword;
+        if (instancePath) err.instancePath = instancePath;
+        if (schemaPath) err.schemaPath = schemaPath;
         if (Object.keys(err).length > 0) {
             yield err;
         }
         if (params.errors) {
-            yield * serializeErrors(params.errors);
+            yield* serializeErrors(params.errors);
         }
     }
 }
-
 
 type ValidationResult =
     | { valid: true }
@@ -72,7 +87,7 @@ const methodName = '@xxxaz/json-schema-typing.JsonSchemaValidator.validate';
 export class JsonSchemaValidator {
     constructor(
         readonly schema: JSONSchema & object,
-        ajvOptions?: AjvOptions
+        ajvOptions?: AjvOptions,
     ) {
         this.#ajv = new Ajv(ajvOptions);
         this.#validate = this.#ajv.compile(this.schema);
@@ -106,13 +121,18 @@ export class JsonSchemaValidator {
         const id = crypto.randomUUID();
         const listener = Promise.withResolvers<ValidationResult>();
         listeners[id] = listener;
-        worker.postMessage({ method: methodName, schema: this.schema, data, id });
+        worker.postMessage({
+            method: methodName,
+            schema: this.schema,
+            data,
+            id,
+        });
         return listener.promise;
     }
 }
 
 type WorkerType = NodeWorker | Worker;
-let workers: WeakMap<object, WorkerType> = new WeakMap();
+const workers: WeakMap<object, WorkerType> = new WeakMap();
 let listeners: Record<string, PromiseWithResolvers<ValidationResult>> = {};
 async function getWorker(key: object): Promise<WorkerType | null> {
     if (workers.has(key)) return workers.get(key) ?? null;
@@ -138,7 +158,11 @@ async function getWorker(key: object): Promise<WorkerType | null> {
     workers.set(key, worker);
     return worker;
 }
-function onMessage(data: {id: string, result?: ValidationResult, error?: any}) {
+function onMessage(data: {
+    id: string;
+    result?: ValidationResult;
+    error?: any;
+}) {
     const listener = listeners[data.id];
     if (listener) {
         if (data.error) {
@@ -150,7 +174,9 @@ function onMessage(data: {id: string, result?: ValidationResult, error?: any}) {
     }
 }
 function onError(err: Error) {
-    Object.values(listeners).forEach(({ reject }) => reject(err));
+    Object.values(listeners).forEach(({ reject }) => {
+        reject(err);
+    });
     listeners = {};
 }
 function onFaild(data: { id: string }) {
@@ -162,7 +188,12 @@ function onFaild(data: { id: string }) {
 }
 
 (async function kickValidateInWorker(): Promise<void> {
-    type ReceiveMesg = { method: string; id: string; schema: JSONSchema & object; data: unknown };
+    type ReceiveMesg = {
+        method: string;
+        id: string;
+        schema: JSONSchema & object;
+        data: unknown;
+    };
     const onMessage = (msg: ReceiveMesg, callback: (result: {}) => void) => {
         const { id, schema, data } = msg;
         try {
@@ -180,7 +211,7 @@ function onFaild(data: { id: string }) {
             if (msg.method !== methodName) return;
             onMessage(msg, (result) => parentPort.postMessage(result));
         });
-    } 
+    }
     if (isWebWorker) {
         self.addEventListener('message', (ev) => {
             const msg = ev.data as ReceiveMesg;
@@ -191,5 +222,3 @@ function onFaild(data: { id: string }) {
         });
     }
 })();
-
-

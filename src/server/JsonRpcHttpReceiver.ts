@@ -1,21 +1,35 @@
 import http from 'http';
-import http2 from 'http2';
+import type http2 from 'http2';
 import stream from 'stream';
 
 type HttpServerRequest = http.IncomingMessage | http2.Http2ServerRequest;
 type HttpServerResponse = http.ServerResponse | http2.Http2ServerResponse;
 type OutgoingHttpHeaders = http.OutgoingHttpHeaders | http2.OutgoingHttpHeaders;
 
-import { JsonStreamingParser, ParsingJson, ParsingJsonArray, ParsingJsonTypes, StringifyingJsonArray } from '@xxxaz/stream-api-json';
+import {
+    JsonStreamingParser,
+    ParsingJson,
+    ParsingJsonArray,
+    type ParsingJsonTypes,
+    StringifyingJsonArray,
+} from '@xxxaz/stream-api-json';
+import {
+    InternalError,
+    InvalidRequest,
+    JsonRpcException,
+} from '../JsonRpcException.js';
+import type { JsonRpcRouter } from '../router/JsonRpcRouter.js';
+import type { JsonRpcRequest } from '../types.js';
+import { isRpcRequest, readStreamAll, stringifyStream } from '../utility.js';
 import { JsonRpcServer } from './JsonRpcServer.js';
-import { InternalError, InvalidRequest, JsonRpcException } from '../JsonRpcException.js';
-import { JsonRpcRouter } from '../router/JsonRpcRouter.js';
-import { isRpcRequest, stringifyStream, readStreamAll } from '../utility.js';
-import { JsonRpcRequest } from '../types.js';
 
 type HttpServeOptions = {
-    requestConverter?: (request: ReadableStream<string|Uint8Array>) => ReadableStream<string>;
-    responseConverter?: (response: ReadableStream<string>) => ReadableStream<Uint8Array|string>;
+    requestConverter?: (
+        request: ReadableStream<string | Uint8Array>,
+    ) => ReadableStream<string>;
+    responseConverter?: (
+        response: ReadableStream<string>,
+    ) => ReadableStream<Uint8Array | string>;
     headers?: OutgoingHttpHeaders;
 };
 
@@ -29,8 +43,12 @@ export class JsonRpcHttpReceiver<Ctx> extends JsonRpcServer<Ctx> {
             ...options.headers,
         };
     }
-    readonly #requestConverter?: (request: ReadableStream<string|Uint8Array>) => ReadableStream<string>;
-    readonly #responseConverter?: (response: ReadableStream<string>) => ReadableStream<Uint8Array|string>;
+    readonly #requestConverter?: (
+        request: ReadableStream<string | Uint8Array>,
+    ) => ReadableStream<string>;
+    readonly #responseConverter?: (
+        response: ReadableStream<string>,
+    ) => ReadableStream<Uint8Array | string>;
     readonly #headers: OutgoingHttpHeaders;
 
     #convertRequesrt(request: HttpServerRequest) {
@@ -39,7 +57,7 @@ export class JsonRpcHttpReceiver<Ctx> extends JsonRpcServer<Ctx> {
                 request.on('error', (error) => controller.error(error));
                 request.on('data', (chunk) => controller.enqueue(chunk));
                 request.on('end', () => controller.close());
-            }
+            },
         });
         return this.#requestConverter?.(stream) ?? stream;
     }
@@ -49,7 +67,11 @@ export class JsonRpcHttpReceiver<Ctx> extends JsonRpcServer<Ctx> {
         return this.#responseConverter(response);
     }
 
-    async serve(context: Ctx, request: HttpServerRequest, response: HttpServerResponse): Promise<void> {
+    async serve(
+        context: Ctx,
+        request: HttpServerRequest,
+        response: HttpServerResponse,
+    ): Promise<void> {
         try {
             const contentLegth = request.headers['content-length'];
             const reqStream = this.#convertRequesrt(request);
@@ -58,23 +80,31 @@ export class JsonRpcHttpReceiver<Ctx> extends JsonRpcServer<Ctx> {
                 : await JsonStreamingParser.readFrom(reqStream).root();
             const { status, stream } = await this.#invoke(context, root);
             const nodeStream = toNodeReadable(this.#convertResponse(stream));
-            const headers = response instanceof http.ServerResponse
-                ? {
-                    ...this.#headers,
-                    'Transfer-Encoding': 'chunked',
-                }
-                : this.#headers;
+            const headers =
+                response instanceof http.ServerResponse
+                    ? {
+                          ...this.#headers,
+                          'Transfer-Encoding': 'chunked',
+                      }
+                    : this.#headers;
             response.writeHead(status, headers);
             nodeStream.pipe(response);
-    
         } catch (err: unknown) {
             console.error(err);
             response.writeHead(500);
-            response.end(JSON.stringify({ jsonrpc: "2.0", error: new InternalError(String(err)).serialize() }));
+            response.end(
+                JSON.stringify({
+                    jsonrpc: '2.0',
+                    error: new InternalError(String(err)).serialize(),
+                }),
+            );
         }
     }
 
-    async #invoke(context: Ctx, req: JsonRpcRequest|JsonRpcRequest[]|ParsingJsonTypes) {
+    async #invoke(
+        context: Ctx,
+        req: JsonRpcRequest | JsonRpcRequest[] | ParsingJsonTypes,
+    ) {
         try {
             if (isRpcRequest(req)) {
                 const result = await this.call(context, req);
@@ -85,8 +115,8 @@ export class JsonRpcHttpReceiver<Ctx> extends JsonRpcServer<Ctx> {
                 const stream = new StringifyingJsonArray(result);
                 return { status: 200, stream };
             }
-            if(req instanceof ParsingJsonArray) {
-                async function * iterateReq() {
+            if (req instanceof ParsingJsonArray) {
+                async function* iterateReq() {
                     for await (const m of req as ParsingJsonArray<any>) {
                         yield await m.all();
                     }
@@ -100,12 +130,14 @@ export class JsonRpcHttpReceiver<Ctx> extends JsonRpcServer<Ctx> {
                 return { status: 200, stream: stringifyStream(result) };
             }
 
-            throw new InvalidRequest('Invalid Request', { request: (req as any) });
+            throw new InvalidRequest('Invalid Request', {
+                request: req as any,
+            });
         } catch (err: unknown) {
-            if(err instanceof JsonRpcException) {
+            if (err instanceof JsonRpcException) {
                 console.error(err);
                 const status = err instanceof InternalError ? 500 : 400;
-                const result = { jsonrpc: "2.0", error: err.serialize() };
+                const result = { jsonrpc: '2.0', error: err.serialize() };
                 return { status, stream: stringifyStream(result) };
             }
             throw err;
@@ -113,7 +145,7 @@ export class JsonRpcHttpReceiver<Ctx> extends JsonRpcServer<Ctx> {
     }
 }
 
-export function toNodeReadable<T>(source: ReadableStream<T>) : stream.Readable {
+export function toNodeReadable<T>(source: ReadableStream<T>): stream.Readable {
     const reader = source.getReader();
     return new stream.Readable({
         async destroy(error, callback) {
@@ -127,6 +159,6 @@ export function toNodeReadable<T>(source: ReadableStream<T>) : stream.Readable {
             } else {
                 this.push(value);
             }
-        }
+        },
     });
 }
