@@ -1,12 +1,20 @@
-import { type WebSocket as NodeWebSocket, type RawData } from 'ws';
-import { type JsonSerializable } from "@xxxaz/stream-api-json";
+import type { JsonSerializable } from '@xxxaz/stream-api-json';
+import type { WebSocket as NodeWebSocket, RawData } from 'ws';
 
-export type WrapableWebSocket = WebSocket|NodeWebSocket;
-export function wrapWebSocket(socket: WrapableWebSocket, listener: SocketListener, closedListener: ScokcetClosedListener) {
+export type WrapableWebSocket = WebSocket | NodeWebSocket;
+export function wrapWebSocket(
+    socket: WrapableWebSocket,
+    listener: SocketListener,
+    closedListener: ScokcetClosedListener,
+) {
     if ('WebSocket' in globalThis && socket instanceof WebSocket) {
         return new BrowserWebSocketWrapper(socket, listener, closedListener);
     }
-    return new NodeWebSocketWrapper(socket as NodeWebSocket, listener, closedListener);
+    return new NodeWebSocketWrapper(
+        socket as NodeWebSocket,
+        listener,
+        closedListener,
+    );
 }
 
 type ClosedData = {
@@ -19,10 +27,12 @@ type ClosedData = {
 type SocketListener = (data: JsonSerializable) => void;
 type ScokcetClosedListener = (data: ClosedData) => void;
 
-type ConnectionState = 'CONNECTING'|'OPEN'|'CLOSING'|'CLOSED';
+type ConnectionState = 'CONNECTING' | 'OPEN' | 'CLOSING' | 'CLOSED';
 export type WebSocketState = (typeof WebSocket)[ConnectionState];
 
-export interface WebSocketWrapper<Socket extends WrapableWebSocket = WrapableWebSocket> {
+export interface WebSocketWrapper<
+    Socket extends WrapableWebSocket = WrapableWebSocket,
+> {
     readonly socket: Socket;
     readonly listener: SocketListener;
     readonly readyState: WebSocketState;
@@ -35,7 +45,7 @@ export class NodeWebSocketWrapper implements WebSocketWrapper<NodeWebSocket> {
     constructor(
         readonly socket: NodeWebSocket,
         readonly listener: SocketListener,
-        readonly closedListener: ScokcetClosedListener
+        readonly closedListener: ScokcetClosedListener,
     ) {
         socket.on('message', this.#onMessage);
         socket.on('close', (code, reasonBuffer) => {
@@ -67,14 +77,14 @@ export class NodeWebSocketWrapper implements WebSocketWrapper<NodeWebSocket> {
         this.listener(parsed);
     };
 
-    async #parseMessage(data: RawData) : Promise<JsonSerializable> {
+    async #parseMessage(data: RawData): Promise<JsonSerializable> {
         if (data instanceof ArrayBuffer) {
             return JSON.parse(await new Blob([data]).text());
         }
-        const json
-            = data instanceof Array
-            ? data.map(d=>JSON.parse(d.toString())).join('')
-            : data.toString()
+        const json =
+            data instanceof Array
+                ? data.map((d) => JSON.parse(d.toString())).join('')
+                : data.toString();
         return JSON.parse(json);
     }
 }
@@ -83,11 +93,16 @@ export class BrowserWebSocketWrapper implements WebSocketWrapper<WebSocket> {
     constructor(
         readonly socket: WebSocket,
         readonly listener: SocketListener,
-        readonly closedListener: ScokcetClosedListener
+        readonly closedListener: ScokcetClosedListener,
     ) {
         socket.addEventListener('message', this.#onMessage);
-        socket.addEventListener('close', ev => {
-            closedListener({ code: ev.code, reason: ev.reason, wasClean: ev.wasClean, wrapper: this });
+        socket.addEventListener('close', (ev) => {
+            closedListener({
+                code: ev.code,
+                reason: ev.reason,
+                wasClean: ev.wasClean,
+                wrapper: this,
+            });
             this.socket.removeEventListener('message', this.#onMessage);
         });
     }
@@ -101,7 +116,9 @@ export class BrowserWebSocketWrapper implements WebSocketWrapper<WebSocket> {
         this.listener(parsed);
     };
 
-    async #parseMessage(data: ArrayBuffer|string|object) : Promise<JsonSerializable> {
+    async #parseMessage(
+        data: ArrayBuffer | string | object,
+    ): Promise<JsonSerializable> {
         if (data instanceof ArrayBuffer) {
             return JSON.parse(await new Blob([data]).text());
         }

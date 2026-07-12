@@ -1,4 +1,3 @@
-
 export const $Null = {
     type: 'null',
     nullable: true,

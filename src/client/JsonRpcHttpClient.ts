@@ -1,27 +1,44 @@
-import { responseToTextStream } from "@xxxaz/stream-api-json/helpers-browser";
-import { ClientHttpError } from "../JsonRpcException.js";
-import { JsonRpcSchema } from "../router/JsonRpcRouter.js";
-import { GenereteId, JsonRpcClient } from "./JsonRpcClient.js";
-import { emptyStrem, readStreamAll } from "../utility.js";
+import { responseToTextStream } from '@xxxaz/stream-api-json/helpers-browser';
+import { ClientHttpError } from '../JsonRpcException.js';
+import type { AnySchemaShape } from '../JsonRpcMethod.js';
+import type { JsonRpcSchema } from '../router/JsonRpcRouter.js';
+import { emptyStrem, readStreamAll } from '../utility.js';
+import { type GenereteId, JsonRpcClient } from './JsonRpcClient.js';
 
-type HeadersGenerator = (body: Blob) => Promise<HeadersInit>|HeadersInit;
+type HeadersGenerator = (body: Blob) => Promise<HeadersInit> | HeadersInit;
 
 type Fetcher = (req: Request) => Promise<Response>;
 
-type JsonRpcHttpClientOptions<Sch extends JsonRpcSchema> = {
-    schema: Sch;
+type JsonRpcHttpClientOptions<Sch> = {
+    /** 省略時は純パスビルダとして動作する (型はジェネリクスから導出) */
+    schema?: Sch & JsonRpcSchema;
     generateId?: GenereteId;
-    postUrl: string|URL;
-    batchUrl?: string|URL;
-    requestConverter?: (request: ReadableStream<string>) => ReadableStream<Uint8Array>;
-    responseConverter?: (response: ReadableStream<Uint8Array>, contentType: string|null) => ReadableStream<string>;
-    headers?: HeadersGenerator|HeadersInit;
+    postUrl: string | URL;
+    batchUrl?: string | URL;
+    requestConverter?: (
+        request: ReadableStream<string>,
+    ) => ReadableStream<Uint8Array>;
+    responseConverter?: (
+        response: ReadableStream<Uint8Array>,
+        contentType: string | null,
+    ) => ReadableStream<string>;
+    headers?: HeadersGenerator | HeadersInit;
     fetcher?: Fetcher;
-    init?: Pick<RequestInit, 'credentials'|'keepalive'|'mode'|'priority'|'redirect'|'referrer'|'referrerPolicy'>;
+    init?: Pick<
+        RequestInit,
+        | 'credentials'
+        | 'keepalive'
+        | 'mode'
+        | 'priority'
+        | 'redirect'
+        | 'referrer'
+        | 'referrerPolicy'
+    >;
 };
 
-export class JsonRpcHttpClient<Sch extends JsonRpcSchema> extends JsonRpcClient<Sch> {
-
+export class JsonRpcHttpClient<
+    Sch extends AnySchemaShape,
+> extends JsonRpcClient<Sch> {
     constructor(options: JsonRpcHttpClientOptions<Sch>) {
         const { schema, generateId, postUrl, batchUrl } = options;
         super({
@@ -37,9 +54,10 @@ export class JsonRpcHttpClient<Sch extends JsonRpcSchema> extends JsonRpcClient<
         this.#responseConverter = options.responseConverter;
         this.#initGenerator = async (body) => {
             const init = options.headers;
-            const headers = (typeof init === 'function')
-                ? new Headers(await init(body))
-                : new Headers(init);
+            const headers =
+                typeof init === 'function'
+                    ? new Headers(await init(body))
+                    : new Headers(init);
             if (!headers.has('Content-Type')) {
                 headers.set('Content-Type', 'application/json');
             }
@@ -50,24 +68,29 @@ export class JsonRpcHttpClient<Sch extends JsonRpcSchema> extends JsonRpcClient<
             };
         };
 
-        const fetcher: Fetcher|null
-            = options.fetcher
-            || ('fetch' in globalThis && globalThis.fetch.bind(globalThis))
-            || null;
+        const fetcher: Fetcher | null =
+            options.fetcher ||
+            ('fetch' in globalThis && globalThis.fetch.bind(globalThis)) ||
+            null;
         if (!fetcher) {
             throw new Error('Fetch API is not available.');
         }
         this.#fetcher = fetcher;
     }
 
-    readonly postUrl: string|URL;
-    readonly batchUrl: string|URL;
-    readonly #requestConverter?: (request: ReadableStream<string>) => ReadableStream<any>;
-    readonly #responseConverter?: (response: ReadableStream<any>, contentType: string|null) => ReadableStream<string>;
+    readonly postUrl: string | URL;
+    readonly batchUrl: string | URL;
+    readonly #requestConverter?: (
+        request: ReadableStream<string>,
+    ) => ReadableStream<any>;
+    readonly #responseConverter?: (
+        response: ReadableStream<any>,
+        contentType: string | null,
+    ) => ReadableStream<string>;
     readonly #initGenerator: (body: Blob) => Promise<RequestInit>;
     readonly #fetcher: Fetcher;
 
-    async #post(url: string|URL, request: ReadableStream<string>) {
+    async #post(url: string | URL, request: ReadableStream<string>) {
         if (this.#requestConverter) request = this.#requestConverter(request);
         const body = await readStreamAll(request);
         const init = await this.#initGenerator(body);
@@ -79,7 +102,10 @@ export class JsonRpcHttpClient<Sch extends JsonRpcSchema> extends JsonRpcClient<
             console.warn(new ClientHttpError(message, { headers }));
         }
         return this.#responseConverter
-            ? this.#responseConverter(response.body ?? emptyStrem(), response.headers.get('Content-Type'))
+            ? this.#responseConverter(
+                  response.body ?? emptyStrem(),
+                  response.headers.get('Content-Type'),
+              )
             : responseToTextStream(response);
     }
 }

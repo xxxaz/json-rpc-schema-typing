@@ -1,16 +1,21 @@
-import { lstatSync, readdirSync, existsSync } from 'fs';
-import { JsonRpcMethodDefinition } from "../JsonRpcMethod.js";
-import { JsonRpcRouter } from "./JsonRpcRouter.js";
+import { existsSync, lstatSync, readdirSync } from 'fs';
+import type { JsonRpcMethodDefinition } from '../JsonRpcMethod.js';
+import { JsonRpcRouter } from './JsonRpcRouter.js';
 
 type RouteCache<Ctx> = {
-    [path: string]: FileSystemRouter<Ctx>|JsonRpcMethodDefinition<Ctx, any, any>|null;
+    [path: string]:
+        | FileSystemRouter<Ctx>
+        | JsonRpcMethodDefinition<Ctx, any, any>
+        | null;
 };
 
 type FileSystemRouterOptions = {
-    pathFilter?: (RegExp|((path: string) => boolean));
+    pathFilter?: RegExp | ((path: string) => boolean);
 };
 
-function parsePathFilter(filter?: RegExp|((path: string) => boolean)): (path: string) => boolean {
+function parsePathFilter(
+    filter?: RegExp | ((path: string) => boolean),
+): (path: string) => boolean {
     if (!filter) return () => true;
     if (filter instanceof RegExp) {
         return (path: string) => filter.test(path);
@@ -19,7 +24,10 @@ function parsePathFilter(filter?: RegExp|((path: string) => boolean)): (path: st
 }
 
 export class FileSystemRouter<Ctx> extends JsonRpcRouter<Ctx> {
-    constructor(private readonly rootDir: string, options: FileSystemRouterOptions = {}) {
+    constructor(
+        private readonly rootDir: string,
+        options: FileSystemRouterOptions = {},
+    ) {
         super();
         if (!existsSync(rootDir)) throw new Error(`Not found: ${rootDir}`);
         const stat = lstatSync(rootDir);
@@ -31,7 +39,9 @@ export class FileSystemRouter<Ctx> extends JsonRpcRouter<Ctx> {
     readonly #pathFilter: (path: string) => boolean;
 
     // instanceof JsonRpcMethodDefinition だと参照先モジュールが複数存在した際に一致しなくなる
-    static #isDefinition(obj: any): obj is JsonRpcMethodDefinition<any, any, any> {
+    static #isDefinition(
+        obj: any,
+    ): obj is JsonRpcMethodDefinition<any, any, any> {
         const key = obj?.constructor?.method;
         return typeof key === 'symbol' && obj[key] instanceof Function;
     }
@@ -42,33 +52,39 @@ export class FileSystemRouter<Ctx> extends JsonRpcRouter<Ctx> {
         const path = `${this.rootDir}/${methodPath}`;
         if (existsSync(path)) {
             if (lstatSync(path).isDirectory()) {
-                return this.#cache[methodPath] = new FileSystemRouter<Ctx>(path, this.#options);
+                return (this.#cache[methodPath] = new FileSystemRouter<Ctx>(
+                    path,
+                    this.#options,
+                ));
             }
         }
 
-        const filePath
-            = existsSync(`${path}.js`)
-                ? `${path}.js`
+        const filePath = existsSync(`${path}.js`)
+            ? `${path}.js`
             : existsSync(`${path}.ts`)
-                ? `${path}.ts`
-                : null;
+              ? `${path}.ts`
+              : null;
         if (!filePath || !this.#pathFilter(filePath)) {
-            return this.#cache[methodPath] = null;
+            return (this.#cache[methodPath] = null);
         }
-        
+
         try {
             const module = await import(filePath);
             if (FileSystemRouter.#isDefinition(module.default)) {
-                return this.#cache[methodPath] = module.default;
+                return (this.#cache[methodPath] = module.default);
             }
-        } catch(e) {
+        } catch (e) {
             console.error(`Invalid routing: ${path}`, e);
         }
 
         return null;
     }
 
-    async resolve(methodPath: string|string[]): Promise<JsonRpcRouter<Ctx>|JsonRpcMethodDefinition<Ctx, any, any>|null> {
+    async resolve(
+        methodPath: string | string[],
+    ): Promise<
+        JsonRpcRouter<Ctx> | JsonRpcMethodDefinition<Ctx, any, any> | null
+    > {
         if (!methodPath || methodPath.length === 0) return this;
         if (typeof methodPath === 'string') methodPath = methodPath.split('.');
         const [head, ...tail] = methodPath;
@@ -88,8 +104,8 @@ export class FileSystemRouter<Ctx> extends JsonRpcRouter<Ctx> {
         return child.resolve(tail);
     }
 
-    async * enumerate(): AsyncIterable<string> {
-        for(const name of readdirSync(this.rootDir)) {
+    async *enumerate(): AsyncIterable<string> {
+        for (const name of readdirSync(this.rootDir)) {
             if (!this.#pathFilter(name)) continue;
             yield name.replace(/\.(js|ts)$/, '');
         }

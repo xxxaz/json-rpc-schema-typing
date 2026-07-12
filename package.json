@@ -1,6 +1,6 @@
 {
     "name": "@xxxaz/json-rpc-schema-typing",
-    "version": "0.10.30",
+    "version": "0.10.31-0",
     "description": "",
     "author": "xxx Inc.",
     "license": "MIT",
@@ -48,6 +48,8 @@
         "prepublish": "npm run build",
         "demo:server": "node --no-warnings=ExperimentalWarning --loader=ts-node/esm ./demo/server.js",
         "demo:client": "node --no-warnings=ExperimentalWarning --loader=ts-node/esm ./demo/client.js",
+        "lint": "biome check src test demo",
+        "format": "biome check --write src test demo",
         "test": "jest"
     },
     "dependencies": {
@@ -61,6 +63,7 @@
         "yaml": "^2.8.0"
     },
     "devDependencies": {
+        "@biomejs/biome": "^2.4.16",
         "@types/jest": "^29.5.14",
         "jest": "^29.7.0",
         "ts-jest": "^29.3.4",

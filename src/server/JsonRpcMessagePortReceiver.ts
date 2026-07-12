@@ -1,7 +1,12 @@
-import { JsonRpcServer } from './JsonRpcServer.js';
-import { JsonRpcRouter } from '../router/JsonRpcRouter.js';
-import { JsonRpcRequest, MessageInput, MessageListener, MessageOutput } from '../types.js';
+import type { JsonRpcRouter } from '../router/JsonRpcRouter.js';
+import type {
+    JsonRpcRequest,
+    MessageInput,
+    MessageListener,
+    MessageOutput,
+} from '../types.js';
 import { isRpcRequest } from '../utility.js';
+import { JsonRpcServer } from './JsonRpcServer.js';
 
 type MessagePortReceiverOprions = {
     validator?: (event: MessageEvent) => boolean;
@@ -11,21 +16,25 @@ export class JsonRpcMessagePortReceiver<Ctx> extends JsonRpcServer<Ctx> {
     readonly #input: MessageInput;
     readonly #validator: (event: MessageEvent) => boolean;
 
-    constructor(router: JsonRpcRouter<Ctx>, messageInput: MessageInput, options: MessagePortReceiverOprions = {}) {
+    constructor(
+        router: JsonRpcRouter<Ctx>,
+        messageInput: MessageInput,
+        options: MessagePortReceiverOprions = {},
+    ) {
         super(router);
         this.#input = messageInput;
         this.#validator = options.validator ?? defaultValidator;
     }
-    
+
     async #onMessage(context: Ctx, output: MessageOutput, event: MessageEvent) {
         if (event.source && event.source !== output) return;
         const { data } = event;
-        const request
-            = (data instanceof Array && data.some(isRpcRequest))
-                ? data as JsonRpcRequest[]
-            : isRpcRequest(data)
-                ? data
-                : null;
+        const request =
+            data instanceof Array && data.some(isRpcRequest)
+                ? (data as JsonRpcRequest[])
+                : isRpcRequest(data)
+                  ? data
+                  : null;
 
         if (!request) {
             console.debug('message is not JsonRpcRequest', request);
@@ -36,17 +45,19 @@ export class JsonRpcMessagePortReceiver<Ctx> extends JsonRpcServer<Ctx> {
             return;
         }
 
-        const response
-            = request instanceof Array
-                ? await Promise.all(request.map(req => this.call(context, req)))
+        const response =
+            request instanceof Array
+                ? await Promise.all(
+                      request.map((req) => this.call(context, req)),
+                  )
                 : await this.call(context, request);
-        
+
         if (event.source instanceof Window) {
             event.source.postMessage(response, event.origin);
         } else {
             (event.source ?? output).postMessage(response);
         }
-    };
+    }
 
     readonly #listeners = new WeakMap<MessageOutput, MessageListener>();
     serve(context: Ctx, output: MessageOutput) {

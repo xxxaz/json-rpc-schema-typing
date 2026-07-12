@@ -1,18 +1,17 @@
 #!/usr/bin/env -S node --no-warnings=ExperimentalWarning --loader=ts-node/esm
 
-import http from 'http';
-import http2 from 'http2';
+import { writeFileSync } from 'node:fs';
+import http from 'node:http';
+import http2 from 'node:http2';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { WebSocketServer } from 'ws';
 import { FileSystemRouter } from '../src/router/FileSystemRouter.js';
 import { JsonRpcHttpReceiver } from '../src/server/JsonRpcHttpReceiver.js';
 import { JsonRpcWebSocketReceiver } from '../src/server/JsonRpcWebSocketReceiver.js';
-import { dirname, resolve } from 'path';
-import { fileURLToPath } from 'url';
-import { writeFileSync } from 'fs';
-import { WebSocketServer } from 'ws';
-
 
 type Ctx = {};
- 
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -38,7 +37,6 @@ wsServer.on('connection', (socket, request) => {
     if (pathname === '/ws') {
         wsRpc.serve({}, socket);
     }
-
 });
 
 httpServer.listen(3000);

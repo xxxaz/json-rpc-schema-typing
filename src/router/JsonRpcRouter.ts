@@ -1,17 +1,42 @@
-import { type JsonSerializable } from "@xxxaz/stream-api-json";
-import { JsonRpcMethodDefinition, JsonRpcMethodSchema, ParameterSchema, Params, Return } from "../JsonRpcMethod.js";
-import { hashObject } from "./hashObject.js";
+import type { JsonSerializable } from '@xxxaz/stream-api-json';
+import type {
+    JsonRpcMethodDefinition,
+    JsonRpcMethodSchema,
+    ParameterSchema,
+    Params,
+    Return,
+} from '../JsonRpcMethod.js';
+import { hashObject } from './hashObject.js';
 
-type AsyncFunction<P, R> = P extends ParameterSchema ? (...params: Params<P>) => Promise<Return<R>> : never;
-type NoticeFunction<P> = P extends ParameterSchema ? (...params: Params<P>) => void : never;
+type AsyncFunction<P, R> = P extends ParameterSchema
+    ? (...params: Params<P>) => Promise<Return<R>>
+    : never;
+type NoticeFunction<P> = P extends ParameterSchema
+    ? (...params: Params<P>) => void
+    : never;
 
 export abstract class JsonRpcRouter<Context = {}> {
-    abstract resolve(methodPath: string): Promise<JsonRpcRouter<Context>|JsonRpcMethodDefinition<Context, any, any>|null>;
-    abstract resolveChild(methodPath: string): Promise<JsonRpcRouter<Context>|JsonRpcMethodDefinition<Context, any, any>|null>;
+    abstract resolve(
+        methodPath: string,
+    ): Promise<
+        | JsonRpcRouter<Context>
+        | JsonRpcMethodDefinition<Context, any, any>
+        | null
+    >;
+    abstract resolveChild(
+        methodPath: string,
+    ): Promise<
+        | JsonRpcRouter<Context>
+        | JsonRpcMethodDefinition<Context, any, any>
+        | null
+    >;
     abstract enumerate(): AsyncIterable<string>;
 
     async schema(): Promise<JsonRpcSchema> {
-        const entries = [] as [string, JsonRpcMethodSchema<any, any>|JsonRpcSchema][];
+        const entries = [] as [
+            string,
+            JsonRpcMethodSchema<any, any> | JsonRpcSchema,
+        ][];
         for await (const key of this.enumerate()) {
             const child = await this.resolveChild(key);
             if (!child) continue;
@@ -27,7 +52,6 @@ export abstract class JsonRpcRouter<Context = {}> {
         }
         return Object.fromEntries(entries) as JsonRpcSchema;
     }
-    
 
     async schemaTypeScript() {
         const schema = await this.schema();
@@ -40,23 +64,25 @@ export abstract class JsonRpcRouter<Context = {}> {
 }
 
 export type JsonRpcSchema = JsonSerializable & {
-    readonly [path: string]: JsonRpcMethodSchema<any, any>|JsonRpcSchema;
+    readonly [path: string]: JsonRpcMethodSchema<any, any> | JsonRpcSchema;
 };
 
-export type JsonRpcAccessor<Router extends JsonRpcRouter|JsonRpcSchema> = {
-    readonly [Key in keyof Router]
-        : Router[Key] extends JsonRpcRouter|JsonRpcSchema
-            ? JsonRpcAccessor<Router[Key]>
+export type JsonRpcAccessor<Router extends JsonRpcRouter | JsonRpcSchema> = {
+    readonly [Key in keyof Router]: Router[Key] extends
+        | JsonRpcRouter
+        | JsonRpcSchema
+        ? JsonRpcAccessor<Router[Key]>
         : Router[Key] extends JsonRpcMethodSchema<any, any>
-            ? AsyncFunction<Router[Key]['$params'], Router[Key]['$return']>
-        : never;
-}
+          ? AsyncFunction<Router[Key]['$params'], Router[Key]['$return']>
+          : never;
+};
 
-export type JsonRpcNotice<Router extends JsonRpcRouter|JsonRpcSchema> = {
-    readonly [Key in keyof Router]
-        : Router[Key] extends JsonRpcRouter|JsonRpcSchema
-            ? JsonRpcNotice<Router[Key]>
+export type JsonRpcNotice<Router extends JsonRpcRouter | JsonRpcSchema> = {
+    readonly [Key in keyof Router]: Router[Key] extends
+        | JsonRpcRouter
+        | JsonRpcSchema
+        ? JsonRpcNotice<Router[Key]>
         : Router[Key] extends JsonRpcMethodSchema<any, any>
-            ? NoticeFunction<Router[Key]['$params']>
-        : never;
-}
+          ? NoticeFunction<Router[Key]['$params']>
+          : never;
+};

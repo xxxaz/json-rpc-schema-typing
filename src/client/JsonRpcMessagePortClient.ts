@@ -1,29 +1,39 @@
-import { LazyResolvers } from "@xxxaz/stream-api-json/utility";
-import { JsonRpcSchema } from "../router/JsonRpcRouter.js";
-import { GenereteId, JsonRpcClient } from "./JsonRpcClient.js";
-import { isRpcResponse, readStreamAll } from "../utility.js";
-import { JsonRpcRequest, JsonRpcResponse, MessageInput, MessageOutput } from "../types.js";
+import { LazyResolvers } from '@xxxaz/stream-api-json/utility';
+import type { JsonRpcSchema } from '../router/JsonRpcRouter.js';
+import type {
+    JsonRpcRequest,
+    JsonRpcResponse,
+    MessageInput,
+    MessageOutput,
+} from '../types.js';
+import { isRpcResponse, readStreamAll } from '../utility.js';
+import { type GenereteId, JsonRpcClient } from './JsonRpcClient.js';
 
 type JsonRpcMessagePortClientOptions<Sch extends JsonRpcSchema> = {
     schema: Sch;
     generateId?: GenereteId;
     targetOrigin?: string;
-} & ({
-    input: MessageInput;
-    output: MessageOutput;
-    port?: undefined;
-}|{
-    input?: undefined;
-    output?: undefined;
-    port: MessageInput & MessageOutput;
-});
+} & (
+    | {
+          input: MessageInput;
+          output: MessageOutput;
+          port?: undefined;
+      }
+    | {
+          input?: undefined;
+          output?: undefined;
+          port: MessageInput & MessageOutput;
+      }
+);
 
 type ProccessedMessage = {
     request: JsonRpcRequest;
     resolver: LazyResolvers<JsonRpcResponse<any>>;
 };
 
-export class JsonRpcMessagePortClient<Sch extends JsonRpcSchema> extends JsonRpcClient<Sch> {
+export class JsonRpcMessagePortClient<
+    Sch extends JsonRpcSchema,
+> extends JsonRpcClient<Sch> {
     readonly #targetOrigin: string;
     readonly #input: MessageInput;
     readonly #output: MessageOutput;
@@ -57,39 +67,39 @@ export class JsonRpcMessagePortClient<Sch extends JsonRpcSchema> extends JsonRpc
                     controller.enqueue(JSON.stringify(response));
                 }
                 controller.close();
-            }
+            },
         });
     }
 
     async #batch(requests: JsonRpcRequest[]) {
         const entries = requests
-            .map(req => [ req.id!, this.#post(req)! ] as const)
-            .filter(([ id, promise ]) => promise)
+            .map((req) => [req.id!, this.#post(req)!] as const)
+            .filter(([id, promise]) => promise);
         const promises = new Map(entries);
 
         return new ReadableStream({
             async start(controller) {
                 controller.enqueue('[');
-                while(promises.size > 0) {
+                while (promises.size > 0) {
                     const response = await Promise.race(promises.values());
                     controller.enqueue(JSON.stringify(response));
                     promises.delete(response.id!);
                 }
                 controller.enqueue(']');
                 controller.close();
-            }
+            },
         });
-    };
+    }
 
-    readonly #pool = new Map<number|string, ProccessedMessage>();
+    readonly #pool = new Map<number | string, ProccessedMessage>();
     #post(request: JsonRpcRequest) {
-        let resolver: LazyResolvers<JsonRpcResponse<any>>|null = null;
+        let resolver: LazyResolvers<JsonRpcResponse<any>> | null = null;
         if (request.id != null) {
             resolver = new LazyResolvers<JsonRpcResponse<any>>();
             this.#pool.set(request.id, { request, resolver });
         }
 
-        if(this.#output instanceof Window) {
+        if (this.#output instanceof Window) {
             this.#output.postMessage(request, this.#targetOrigin);
         } else {
             this.#output.postMessage(request);
@@ -111,11 +121,10 @@ export class JsonRpcMessagePortClient<Sch extends JsonRpcSchema> extends JsonRpc
         }
         const pooled = this.#pool.get(data.id);
         if (!pooled) {
-            console.warn('Orphan rpc response.', data)
+            console.warn('Orphan rpc response.', data);
             return;
         }
         pooled.resolver.resolve(data);
         this.#pool.delete(data.id);
     }
-
 }
