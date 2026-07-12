@@ -9,11 +9,20 @@ export type StaticRoute<Ctx> =
     | JsonRpcMethodDefinition<Ctx, any, any>;
 /**
  * `() => import('./path.js')` 形式の遅延エントリ。
- * 解決結果が `default` を持つ場合 (ES module) は default export を採用する。
+ * 解決結果 (module) は `resolveChild` 内で `isDefinition` ガードにより検証し、
+ * 戻り値の型を `JsonRpcMethodDefinition | StaticRouter | null` に固定する。
+ *
+ * 解決結果の型を `unknown` にしているのは意図的。ここを `StaticRoute<Ctx>`
+ * (= `RouteMap<Ctx> | JsonRpcMethodDefinition`) にすると、具体 route リテラルとの
+ * assignability 検査で thunk の `{ default: MethodDef }` が
+ * `StaticRoute → RouteMap → MethodDef の $params/$return` を再帰展開し、
+ * 単一メソッドの route map でも TS2589 (型 instantiation が深すぎる) を誘発する。
+ * dispatch 型はモジュール実体の形を静的に知り得ず実行時ガードに委ねるため、
+ * ここを `unknown` に固定するのは型安全の毀損ではなく責務の適切な分離。
+ * client 側の引数・返り値型は `SchemaTree<typeof routes>` が具体リテラルから
+ * 導出する別経路であり、本型に一切影響されない。
  */
-export type LazyRouteThunk<Ctx> = () => Promise<
-    StaticRoute<Ctx> | { default: StaticRoute<Ctx> } | undefined
->;
+export type LazyRouteThunk<Ctx> = () => Promise<unknown>;
 export type RouteMap<Ctx> = {
     readonly [path: string]:
         | StaticRoute<Ctx>
@@ -127,9 +136,7 @@ export class StaticRouter<Ctx> extends JsonRpcRouter<Ctx> {
  * 「default を持つ module namespace なら default を採用」という一時的なランタイム判定を
  * この関数内に閉じ込め、戻り値は `StaticRoute<Ctx>|undefined` に固定する。
  */
-function unwrapModule<Ctx>(
-    loaded: StaticRoute<Ctx> | { default: StaticRoute<Ctx> } | undefined,
-): StaticRoute<Ctx> | undefined {
+function unwrapModule<Ctx>(loaded: unknown): StaticRoute<Ctx> | undefined {
     if (
         loaded &&
         typeof loaded === 'object' &&
@@ -139,7 +146,8 @@ function unwrapModule<Ctx>(
         // module namespace ({ default }) と runtime 判定できた場合のみ default を採用する局所キャスト
         return (loaded as { default: StaticRoute<Ctx> }).default;
     }
-    return loaded;
+    // lazy thunk の解決結果は dispatch 型では unknown。実行時判定を経て戻り値型を固定する局所キャスト。
+    return loaded as StaticRoute<Ctx> | undefined;
 }
 
 /**
